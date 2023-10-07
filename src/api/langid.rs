@@ -8,7 +8,7 @@ use std::{
 use poem_openapi::registry::{MetaSchema, MetaSchemaRef};
 use serde::{de::Error as _, Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::Value;
-use sqlx::sqlite::SqliteArgumentValue;
+//use sqlx::postgres::PgArguments;
 
 /// Language id
 ///
@@ -44,24 +44,25 @@ impl Deref for LangId {
     }
 }
 
-impl sqlx::Type<sqlx::Sqlite> for LangId {
-    fn type_info() -> sqlx::sqlite::SqliteTypeInfo {
+impl sqlx::Type<sqlx::Postgres> for LangId {
+    fn type_info() -> sqlx::postgres::PgTypeInfo {
         String::type_info()
     }
 
-    fn compatible(ty: &sqlx::sqlite::SqliteTypeInfo) -> bool {
+    fn compatible(ty: &sqlx::postgres::PgTypeInfo) -> bool {
         String::compatible(ty)
     }
 }
 
-impl<'a> sqlx::Decode<'a, sqlx::Sqlite> for LangId {
-    fn decode(value: sqlx::sqlite::SqliteValueRef<'a>) -> Result<Self, sqlx::error::BoxDynError> {
+impl<'a> sqlx::Decode<'a, sqlx::Postgres> for LangId {
+    fn decode(value: sqlx::postgres::PgValueRef<'a>) -> Result<Self, sqlx::error::BoxDynError> {
         let s = String::decode(value)?;
         let language_tag: unic_langid::LanguageIdentifier = s.parse().map_err(Box::new)?;
         Ok(Self(language_tag))
     }
 }
 
+/*
 impl<'a> sqlx::Encode<'a, sqlx::Sqlite> for LangId {
     fn encode_by_ref(
         &self,
@@ -69,6 +70,16 @@ impl<'a> sqlx::Encode<'a, sqlx::Sqlite> for LangId {
     ) -> sqlx::encode::IsNull {
         buf.push(SqliteArgumentValue::Text(Cow::Owned(self.0.to_string())));
         sqlx::encode::IsNull::No
+    }
+}
+ */
+
+impl<'a> sqlx::Encode<'a, sqlx::Postgres> for LangId {
+    fn encode_by_ref(
+        &self,
+        buf: &mut sqlx::postgres::PgArgumentBuffer,
+    ) -> sqlx::encode::IsNull {
+        self.0.to_string().encode(buf)
     }
 }
 

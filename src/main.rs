@@ -29,7 +29,7 @@ use poem::{
     EndpointExt, RouteScheme, Server,
 };
 use serde::Deserialize;
-use sqlx::SqlitePool;
+use sqlx::PgPool;
 use tokio::runtime::Runtime;
 use tracing_subscriber::{fmt::Subscriber, util::SubscriberInitExt, EnvFilter};
 use zip::ZipArchive;
@@ -263,7 +263,7 @@ fn main() {
             Err(err) => {
                 tracing::error!(
                     error = %err,
-                    "failed to create server."
+                    "failed to create server.:"
                 );
                 return;
             }

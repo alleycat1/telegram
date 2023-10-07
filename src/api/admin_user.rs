@@ -302,7 +302,7 @@ impl ApiAdminUser {
 
         // update user table
         let sql = format!(
-            "update user set {} where uid = ?",
+            "update \"user\" set {} where uid = ?",
             req.password
                 .iter()
                 .map(|_| "password = ?")
@@ -351,8 +351,8 @@ impl ApiAdminUser {
             .map_err(InternalServerError)?;
 
         // insert into user_log table
-        let sql = "insert into user_log (uid, action, email, name, gender, is_admin, language) values (?, ?, ?, ?, ?, ?, ?)";
-        let log_id = sqlx::query(sql)
+        let sql = "insert into user_log (uid, action, email, name, gender, is_admin, language) values (?, ?, ?, ?, ?, ?, ?) RETURNING id";
+        let new_log_id: (i64,) = sqlx::query_as(sql)
             .bind(uid.0)
             .bind(UpdateAction::Update)
             .bind(&req.email)
@@ -360,10 +360,10 @@ impl ApiAdminUser {
             .bind(req.gender)
             .bind(req.is_admin)
             .bind(&req.language)
-            .execute(&mut tx)
+            .fetch_one(&mut tx)
             .await
-            .map_err(InternalServerError)?
-            .last_insert_rowid();
+            .map_err(InternalServerError)?;
+        let log_id = new_log_id.0;
 
         // commit transaction
         tx.commit().await.map_err(InternalServerError)?;
@@ -470,15 +470,15 @@ impl ApiAdminUser {
             .await
             .map_err(InternalServerError)?;
 
-        let log_id =
-            sqlx::query("insert into user_log (uid, action, avatar_updated_at) values (?, ?, ?)")
+        let new_log_id: (i64,) =
+            sqlx::query_as("insert into user_log (uid, action, avatar_updated_at) values (?, ?, ?) RETURNING id")
                 .bind(uid.0)
                 .bind(UpdateAction::Update)
                 .bind(now)
-                .execute(&mut tx)
+                .fetch_one(&mut tx)
                 .await
-                .map_err(InternalServerError)?
-                .last_insert_rowid();
+                .map_err(InternalServerError)?;
+        let log_id = new_log_id.0;
 
         tx.commit().await.map_err(InternalServerError)?;
 
@@ -535,16 +535,16 @@ impl ApiAdminUser {
 
         // update sqlite
         let now = DateTime::now();
-        let key_id =
-            sqlx::query("insert into `bot_key` (uid, name, key, created_at) values (?, ?, ?, ?)")
+        let new_key_id:(i64,) =
+            sqlx::query_as("insert into `bot_key` (uid, name, key, created_at) values (?, ?, ?, ?) RETURNING id")
                 .bind(uid.0)
                 .bind(&req.name)
                 .bind(&api_key)
                 .bind(now)
-                .execute(&state.db_pool)
+                .fetch_one(&state.db_pool)
                 .await
-                .map_err(InternalServerError)?
-                .last_insert_rowid();
+                .map_err(InternalServerError)?;
+        let key_id = new_key_id.0;
 
         // update cache
         user.bot_keys.insert(

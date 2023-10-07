@@ -1,6 +1,6 @@
-create table user_log
+create table "user_log"
 (
-    id                integer primary key autoincrement not null,
+    id                integer primary key not null,
     uid               integer   not null,
     action            integer   not null,
     email             text,
@@ -11,3 +11,7 @@ create table user_log
     avatar_updated_at timestamp,
     created_at        timestamp not null default current_timestamp
 );
+
+CREATE SEQUENCE "user_log_sequence" ;
+ALTER SEQUENCE "user_log_sequence"
+OWNED BY "user_log"."id";

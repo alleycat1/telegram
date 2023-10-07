@@ -168,18 +168,18 @@ impl ApiGroup {
         let mut tx = state.db_pool.begin().await.map_err(InternalServerError)?;
         let now = DateTime::now();
         let owner = if req.is_public { None } else { Some(token.uid) };
-        let sql = "insert into `group` (name, description, owner, is_public, created_at, updated_at) values (?, ?, ?, ?, ?, ?)";
-        let gid = sqlx::query(sql)
+        let sql = "insert into group (name, description, owner, is_public, created_at, updated_at) values (?, ?, ?, ?, ?, ?) RETURNING gid";
+        let new_gid: (i64,) = sqlx::query_as(sql)
             .bind(&req.0.name)
             .bind(req.0.description.as_deref().unwrap_or_default())
             .bind(owner)
             .bind(req.is_public)
             .bind(now)
             .bind(now)
-            .execute(&mut tx)
+            .fetch_one(&mut tx)
             .await
-            .map_err(InternalServerError)?
-            .last_insert_rowid();
+            .map_err(InternalServerError)?;
+        let gid = new_gid.0;
 
         for id in &members {
             sqlx::query("insert into group_user (gid, uid) values (?, ?)")
@@ -285,7 +285,7 @@ impl ApiGroup {
         state.save_group_avatar(gid.0, &data)?;
 
         // update sqlite
-        sqlx::query("update `group` set avatar_updated_at = ? where gid = ?")
+        sqlx::query("update group set avatar_updated_at = ? where gid = ?")
             .bind(now)
             .bind(gid.0)
             .execute(&state.db_pool)
@@ -337,7 +337,7 @@ impl ApiGroup {
         }
 
         // update sqlite
-        sqlx::query("delete from `group` where gid = ?")
+        sqlx::query("delete from group where gid = ?")
             .bind(gid.0)
             .execute(&state.db_pool)
             .await
@@ -409,7 +409,7 @@ impl ApiGroup {
 
         // update sqlite
         let sql = format!(
-            "update `group` set {} where gid = ?",
+            "update group set {} where gid = ?",
             req.name
                 .iter()
                 .map(|_| "name = ?")
@@ -507,7 +507,7 @@ impl ApiGroup {
         match (group.ty.is_public(), req.is_public) {
             (true, false) => {
                 // public to private
-                sqlx::query("update `group` set is_public = ?, owner = ? where gid = ?")
+                sqlx::query("update group set is_public = ?, owner = ? where gid = ?")
                     .bind(false)
                     .bind(token.uid)
                     .bind(gid.0)
@@ -535,7 +535,7 @@ impl ApiGroup {
             }
             (false, true) => {
                 // private to public
-                sqlx::query("update `group` set is_public = ?, owner = ? where gid = ?")
+                sqlx::query("update group set is_public = ?, owner = ? where gid = ?")
                     .bind(true)
                     .bind(None::<i32>)
                     .bind(gid.0)

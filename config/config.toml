@@ -1,5 +1,5 @@
 # webclient_url = "https://github.com/Privoce/vocechat-web/releases/latest/download"
-webclient_url = "https://s.voce.chat/web_client/v0.3.x"
+#webclient_url = "https://s.voce.chat/web_client/v0.3.x"
 
 [system]
 data_dir = "./data"
@@ -8,9 +8,9 @@ refresh_token_expiry_seconds = 604800
 # magic_token_expiry_seconds = 600
 
 [network]
-bind = "0.0.0.0:3000"
+bind = "142.132.218.205:3000"
 # domain = "chat.privoce.com"
-frontend_url = "http://1.2.3.4:4000"
+#frontend_url = "http://1.2.3.4:4000"
 
 # [network.tls]
 # type = "self_signed"

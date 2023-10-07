@@ -85,9 +85,9 @@ const fn default_max_favorite_archives() -> usize {
 }
 
 impl SystemConfig {
-    pub fn sqlite_filename(&self) -> PathBuf {
-        self.db_dir().join("db.sqlite")
-    }
+    //pub fn sqlite_filename(&self) -> PathBuf {
+    //    self.db_dir().join("db.sqlite")
+    //}
 
     pub fn tmp_dir(&self) -> PathBuf {
         self.data_dir.join("upload").join("tmp")

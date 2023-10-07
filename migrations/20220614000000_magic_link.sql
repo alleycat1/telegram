@@ -1,9 +1,9 @@
 create table user_tmp
 (
-    uid               integer primary key autoincrement not null,
-    name              text collate nocase not null,
+    uid               integer primary key not null,
+    name              text not null,
     password          text,
-    email             text collate nocase,
+    email             text,
     gender            integer             not null,
     language          text                not null,
     is_admin          boolean             not null default false,
@@ -13,4 +13,8 @@ create table user_tmp
     updated_at        timestamp           not null default current_timestamp
 );
 
-create unique index user_tmp_email on user (email);
+CREATE SEQUENCE "user_tmp_sequence" ;
+ALTER SEQUENCE "user_tmp_sequence"
+OWNED BY "user_tmp"."uid";
+
+create unique index user_tmp_email on "user" (email);

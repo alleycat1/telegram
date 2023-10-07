@@ -7,7 +7,7 @@ use poem::{
     EndpointExt,
 };
 use serde_json::json;
-use sqlx::{migrate::MigrateDatabase, Sqlite, SqlitePool};
+use sqlx::{migrate::MigrateDatabase, Postgres, PgPool};
 use tempfile::TempDir;
 
 use crate::{
@@ -304,8 +304,8 @@ impl TestServer {
 
 async fn init_db(path: &Path) {
     std::fs::create_dir(path.join("db")).unwrap();
-    let dsn = format!("sqlite:{}", path.join("db").join("db.sqlite").display());
-    Sqlite::create_database(&dsn).await.unwrap();
-    let db = SqlitePool::connect(&dsn).await.unwrap();
+    let dsn = "postgres://test:test@127.0.0.1/test"; //format!("sqlite:{}", path.join("db").join("db.sqlite").display());
+    Postgres::create_database(&dsn).await.unwrap();
+    let db = PgPool::connect(&dsn).await.unwrap();
     MIGRATOR.run(&db).await.unwrap();
 }

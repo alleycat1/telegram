@@ -201,8 +201,8 @@ impl State {
         } else {
             DateTime::zero()
         };
-        let sql = "insert into user (name, password, email, gender, language, is_admin, create_by, avatar_updated_at, status, created_at, updated_at, is_guest, webhook_url, is_bot) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
-        let uid = sqlx::query(sql)
+        let sql = "insert into \"user\" (name, password, email, gender, language, is_admin, create_by, avatar_updated_at, status, created_at, updated_at, is_guest, webhook_url, is_bot) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING uid";
+        let new_uid : (i64,)  = sqlx::query_as(sql)
             .bind(create_user.name)
             .bind(password)
             .bind(email)
@@ -217,10 +217,10 @@ impl State {
             .bind(is_guest)
             .bind(create_user.webhook_url)
             .bind(create_user.is_bot)
-            .execute(&mut tx)
+            .fetch_one(&mut tx)
             .await
-            .map_err(InternalServerError)?
-            .last_insert_rowid();
+            .map_err(InternalServerError)?;
+        let uid = new_uid.0;
 
         if let Some(avatar) = create_user.avatar {
             let _ = self.save_avatar(uid, avatar);
@@ -284,8 +284,8 @@ impl State {
 
         let log_id = if !is_guest {
             // insert into user_log table
-            let sql = "insert into user_log (uid, action, email, name, gender, language, avatar_updated_at, is_admin, is_bot) values (?, ?, ?, ?, ?, ?, ?, ?, ?)";
-            let log_id = sqlx::query(sql)
+            let sql = "insert into user_log (uid, action, email, name, gender, language, avatar_updated_at, is_admin, is_bot) values (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id";
+            let new_log_id : (i64,) = sqlx::query_as(sql)
                 .bind(uid)
                 .bind(UpdateAction::Create)
                 .bind(email)
@@ -295,10 +295,10 @@ impl State {
                 .bind(avatar_updated_at)
                 .bind(create_user.is_admin)
                 .bind(create_user.is_bot)
-                .execute(&mut tx)
+                .fetch_one(&mut tx)
                 .await
-                .map_err(InternalServerError)?
-                .last_insert_rowid();
+                .map_err(InternalServerError)?;
+            let log_id = new_log_id.0;
             Some(log_id)
         } else {
             None

@@ -1,1 +1,1 @@
-alter table user add column status integer not null default 0;
+alter table "user" add column status integer not null default 0;

@@ -7,7 +7,7 @@ use poem::{
     Endpoint, EndpointExt, Route,
 };
 use rc_msgdb::MsgDb;
-use sqlx::migrate::{MigrateDatabase, Migrator};
+use sqlx::migrate::{Migrator};
 use tokio::sync::{broadcast, mpsc, RwLock};
 
 use crate::{
@@ -22,7 +22,7 @@ use crate::{
         forward_chat_messages_to_webhook, BroadcastEvent, Cache, DynamicConfigEntry, Template,
         Templates,
     },
-    Config, SqlitePool, State,
+    Config, State,
 };
 
 pub static MIGRATOR: Migrator = sqlx::migrate!();
@@ -70,14 +70,14 @@ pub async fn create_state(config_path: &Path, config: Arc<Config>) -> Result<Sta
     std::fs::create_dir_all(config.system.group_avatar_dir()).expect("create group avatars dir");
 
     // open sqlite db
-    let dsn = format!("sqlite:{}", config.system.sqlite_filename().display());
-    if !config.system.sqlite_filename().exists() {
-        tracing::info!(dsn = dsn.as_str(), "create sqlite db.");
-        sqlx::Sqlite::create_database(&dsn).await?;
-    }
+    let dsn = "postgres://test:test@127.0.0.1/test";//format!("sqlite:{}", config.system.sqlite_filename().display());
+    //if !config.system.sqlite_filename().exists() {
+    //    tracing::info!(dsn = dsn.as_str(), "create sqlite db.");
+    //    sqlx::Sqlite::create_database(&dsn).await?;
+    //}
 
-    tracing::info!(dsn = dsn.as_str(), "open sqlite db.");
-    let db_pool = SqlitePool::connect(&dsn).await?;
+    tracing::info!(dsn, "open postgres db.");
+    let db_pool = sqlx::PgPool::connect(&dsn).await?; //SqlitePool::connect(&dsn).await?;
     MIGRATOR.run(&db_pool).await?;
 
     // open message db
@@ -119,7 +119,8 @@ pub async fn create_state(config_path: &Path, config: Arc<Config>) -> Result<Sta
         invalid_device_tokens: Default::default(),
     };
 
-    // load dynamic config
+    // load dynamic config //commented by Netragon
+    /*
     state
         .initialize_dynamic_config::<OrganizationConfig>()
         .await?;
@@ -138,6 +139,7 @@ pub async fn create_state(config_path: &Path, config: Arc<Config>) -> Result<Sta
         .await?;
     state.initialize_dynamic_config::<AgoraConfig>().await?;
     state.initialize_dynamic_config::<LoginConfig>().await?;
+    */
 
     // create users
     for user in &config.users {

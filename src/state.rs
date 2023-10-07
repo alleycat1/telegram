@@ -22,7 +22,7 @@ use rc_magic_link::MagicLinkToken;
 use rc_msgdb::MsgDb;
 use reqwest::Client;
 use serde::{de::DeserializeOwned, Serialize};
-use sqlx::SqlitePool;
+use sqlx::PgPool;
 use tokio::sync::{broadcast, mpsc, Mutex, RwLock};
 use walkdir::WalkDir;
 
@@ -395,7 +395,7 @@ pub struct State {
     pub key_config: Arc<RwLock<KeyConfig>>,
     pub config: Arc<Config>,
     pub config_path: PathBuf,
-    pub db_pool: SqlitePool,
+    pub db_pool: PgPool,
     pub msg_db: Arc<MsgDb>,
     pub cache: Arc<RwLock<Cache>>,
     pub event_sender: Arc<broadcast::Sender<Arc<BroadcastEvent>>>,
@@ -406,9 +406,9 @@ pub struct State {
 }
 
 impl State {
-    pub async fn load_users_cache(db: &SqlitePool) -> sqlx::Result<BTreeMap<i64, CacheUser>> {
+    pub async fn load_users_cache(db: &PgPool) -> sqlx::Result<BTreeMap<i64, CacheUser>> {
         let mut users = BTreeMap::new();
-        let sql = "select uid, email, name, password, gender, is_admin, language, create_by, created_at, updated_at, avatar_updated_at, status, is_guest, webhook_url, is_bot from user";
+        let sql = "select uid, email, name, password, gender, is_admin, language, create_by, created_at, updated_at, avatar_updated_at, status, is_guest, webhook_url, is_bot from \"user\"";
         let mut stream = sqlx::query_as::<
             _,
             (
@@ -579,12 +579,12 @@ impl State {
 
     pub async fn load_groups_cache(
         msg_db: &MsgDb,
-        db: &SqlitePool,
+        db: &PgPool,
     ) -> sqlx::Result<BTreeMap<i64, CacheGroup>> {
         let mut groups = BTreeMap::new();
 
         let sql =
-            "select gid, name, description, owner, is_public, created_at, updated_at, avatar_updated_at from `group`";
+            "select gid, name, description, owner, is_public, created_at, updated_at, avatar_updated_at from \"group\"";
         let mut stream = sqlx::query_as::<
             _,
             (
@@ -1094,7 +1094,7 @@ impl State {
         let mut tx = self.db_pool.begin().await.map_err(InternalServerError)?;
 
         // delete from user table
-        sqlx::query("delete from user where uid = ?")
+        sqlx::query("delete from \"user\" where uid = ?")
             .bind(uid)
             .execute(&mut tx)
             .await
@@ -1102,13 +1102,13 @@ impl State {
 
         let log_id = if !is_guest {
             // insert into user_log table
-            let log_id = sqlx::query("insert into user_log (uid, action) values (?, ?)")
+            let new_log_id : (i64,) = sqlx::query_as("insert into user_log (uid, action) values (?, ?) RETURNING id")
                 .bind(uid)
                 .bind(UpdateAction::Delete)
-                .execute(&mut tx)
+                .fetch_one(&mut tx)
                 .await
-                .map_err(InternalServerError)?
-                .last_insert_rowid();
+                .map_err(InternalServerError)?;
+            let log_id = new_log_id.0;
             Some(log_id)
         } else {
             None

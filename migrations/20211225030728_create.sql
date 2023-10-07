@@ -1,9 +1,9 @@
-create table user
+create table "user"
 (
-    uid               integer primary key autoincrement not null,
-    name              text collate nocase not null,
+    uid               integer primary key not null,
+    name              text not null,
     password          text,
-    email             text collate nocase,
+    email             text,
     gender            integer             not null,
     language          text                not null,
     is_admin          boolean             not null default false,
@@ -13,30 +13,34 @@ create table user
     updated_at        timestamp           not null default current_timestamp
 );
 
-create unique index user_name on user (name);
-create unique index user_email on user (email);
+CREATE SEQUENCE "user_sequence" ;
+ALTER SEQUENCE "user_sequence"
+OWNED BY "user"."uid";
 
-create table google_auth
+create unique index "user_name" on "user" (name);
+create unique index "user_email" on "user" (email);
+
+create table "google_auth"
 (
     email text primary key not null,
     uid   integer          not null,
-    foreign key (uid) references user (uid) on delete cascade
+    foreign key (uid) references "user" (uid) on delete cascade
 );
 
 create unique index google_auth_uid on google_auth (uid);
 
-create table openid_connect
+create table "openid_connect"
 (
     issuer  text    not null,
     subject text    not null,
     uid     integer not null,
     primary key (issuer, subject),
-    foreign key (uid) references user (uid) on delete cascade
+    foreign key (uid) references "user" (uid) on delete cascade
 );
 
-create unique index openid_connect_uid on openid_connect (uid);
+create unique index "openid_connect_uid" on openid_connect (uid);
 
-create table refresh_token
+create table "refresh_token"
 (
     uid        integer   not null,
     device     text      not null,
@@ -44,10 +48,10 @@ create table refresh_token
     created_at timestamp not null default current_timestamp,
     updated_at timestamp not null default current_timestamp,
     primary key (uid, device),
-    foreign key (uid) references user (uid) on delete cascade
+    foreign key (uid) references "user" (uid) on delete cascade
 );
 
-create table device
+create table "device"
 (
     uid          integer   not null,
     device       text      not null,
@@ -55,12 +59,12 @@ create table device
     created_at   timestamp not null default current_timestamp,
     updated_at   timestamp not null default current_timestamp,
     primary key (uid, device),
-    foreign key (uid) references user (uid) on delete cascade
+    foreign key (uid) references "user" (uid) on delete cascade
 );
 
-create table `group`
+create table "group"
 (
-    gid         integer primary key autoincrement not null,
+    gid         integer primary key not null,
     name        text      not null,
     owner       integer,
     is_public   bool      not null default false,
@@ -69,14 +73,23 @@ create table `group`
     updated_at  timestamp not null default current_timestamp
 );
 
-create table group_user
+CREATE SEQUENCE "group_sequence" ;
+ALTER SEQUENCE "group_sequence"
+OWNED BY "group"."gid";
+
+
+create table "group_user"
 (
-    id  integer primary key autoincrement not null,
+    id  integer primary key not null,
     gid integer not null,
     uid integer not null,
-    foreign key (gid) references `group` (gid) on delete cascade,
-    foreign key (uid) references user (uid) on delete cascade
+    foreign key (gid) references "group" (gid) on delete cascade,
+    foreign key (uid) references "user" (uid) on delete cascade
 );
+
+CREATE SEQUENCE "group_user_sequence" ;
+ALTER SEQUENCE "group_user_sequence"
+OWNED BY "group_user"."id";
 
 create unique index group_user_gid_uid on group_user (gid, uid);
 create index group_user_gid on group_user (gid);

@@ -45,26 +45,26 @@ impl Default for DateTime {
     }
 }
 
-impl sqlx::Type<sqlx::Sqlite> for DateTime {
-    fn type_info() -> sqlx::sqlite::SqliteTypeInfo {
+impl sqlx::Type<sqlx::Postgres> for DateTime {
+    fn type_info() -> sqlx::postgres::PgTypeInfo {
         <chrono::DateTime<Utc>>::type_info()
     }
 
-    fn compatible(ty: &sqlx::sqlite::SqliteTypeInfo) -> bool {
+    fn compatible(ty: &sqlx::postgres::PgTypeInfo) -> bool {
         <chrono::DateTime<Utc>>::compatible(ty)
     }
 }
 
-impl<'a> sqlx::Decode<'a, sqlx::Sqlite> for DateTime {
-    fn decode(value: sqlx::sqlite::SqliteValueRef<'a>) -> Result<Self, sqlx::error::BoxDynError> {
+impl<'a> sqlx::Decode<'a, sqlx::Postgres> for DateTime {
+    fn decode(value: sqlx::postgres::PgValueRef<'a>) -> Result<Self, sqlx::error::BoxDynError> {
         <chrono::DateTime<Utc>>::decode(value).map(Self)
     }
 }
 
-impl<'a> sqlx::Encode<'a, sqlx::Sqlite> for DateTime {
+impl<'a> sqlx::Encode<'a, sqlx::Postgres> for DateTime {
     fn encode_by_ref(
         &self,
-        buf: &mut Vec<sqlx::sqlite::SqliteArgumentValue<'a>>,
+        buf: &mut sqlx::postgres::PgArgumentBuffer,
     ) -> sqlx::encode::IsNull {
         self.0.encode(buf)
     }

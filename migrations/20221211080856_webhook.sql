@@ -1,4 +1,4 @@
 alter table
-    user
+    "user"
 add
-    column webhook_url string;
+    column webhook_url text;

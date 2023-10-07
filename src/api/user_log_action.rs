@@ -1,5 +1,5 @@
 use poem_openapi::Enum;
-use sqlx::sqlite::SqliteArgumentValue;
+//use sqlx::postgres::{PgArgumentBuffer, PgArguments};
 
 /// Update action type
 #[derive(
@@ -13,29 +13,42 @@ pub enum UpdateAction {
     Delete = 3,
 }
 
-impl sqlx::Type<sqlx::Sqlite> for UpdateAction {
-    fn type_info() -> sqlx::sqlite::SqliteTypeInfo {
+impl sqlx::Type<sqlx::Postgres> for UpdateAction {
+    fn type_info() -> sqlx::postgres::PgTypeInfo {
         i32::type_info()
     }
 
-    fn compatible(ty: &sqlx::sqlite::SqliteTypeInfo) -> bool {
+    fn compatible(ty: &sqlx::postgres::PgTypeInfo) -> bool {
         i32::compatible(ty)
     }
 }
 
-impl<'a> sqlx::Decode<'a, sqlx::Sqlite> for UpdateAction {
-    fn decode(value: sqlx::sqlite::SqliteValueRef<'a>) -> Result<Self, sqlx::error::BoxDynError> {
+impl<'a> sqlx::Decode<'a, sqlx::Postgres> for UpdateAction {
+    fn decode(value: sqlx::postgres::PgValueRef<'a>) -> Result<Self, sqlx::error::BoxDynError> {
         let n = i32::decode(value)?;
         Ok(Self::try_from(n)?)
     }
 }
 
+/*
 impl<'a> sqlx::Encode<'a, sqlx::Sqlite> for UpdateAction {
     fn encode_by_ref(
         &self,
         buf: &mut Vec<sqlx::sqlite::SqliteArgumentValue<'a>>,
     ) -> sqlx::encode::IsNull {
         buf.push(SqliteArgumentValue::Int((*self).into()));
+        sqlx::encode::IsNull::No
+    }
+}
+*/
+
+impl<'a> sqlx::Encode<'a, sqlx::Postgres> for UpdateAction {
+    fn encode_by_ref(
+        &self,
+        buf: &mut sqlx::postgres::PgArgumentBuffer,
+    ) -> sqlx::encode::IsNull {
+        let v: u8 = *self as u8;
+        buf.push(v);
         sqlx::encode::IsNull::No
     }
 }

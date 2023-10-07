@@ -46,7 +46,7 @@ use crate::{
     create_user::{CreateUser, CreateUserBy, CreateUserError},
     middleware::guest_forbidden,
     state::{BroadcastEvent, Cache, CacheDevice, CacheUser, UserEvent},
-    SqlitePool, State,
+    PgPool, State,
 };
 
 const MAX_NEWEST_MESSAGES: usize = 5000;
@@ -685,7 +685,7 @@ impl ApiUser {
         }
 
         // update database
-        let sql = "update user set password = ? where uid = ?";
+        let sql = "update \"user\" set password = ? where uid = ?";
         sqlx::query(sql)
             .bind(&req.new_password)
             .bind(token.uid)
@@ -730,7 +730,7 @@ impl ApiUser {
 
         // update user table
         let sql = format!(
-            "update user set {} where uid = ?",
+            "update \"user\" set {} where uid = ?",
             req.name
                 .iter()
                 .map(|_| "name = ?")
@@ -760,17 +760,18 @@ impl ApiUser {
 
         // insert into user_log table
         let log_id = if req.name.is_some() || req.gender.is_some() && req.language.is_some() {
-            Some(sqlx::query(
-                "insert into user_log (uid, action, name, gender, language) values (?, ?, ?, ?, ?)",
+            let new_log_id: (i64,) = sqlx::query_as(
+                "insert into user_log (uid, action, name, gender, language) values (?, ?, ?, ?, ?) RETURNING id",
             )
                 .bind(token.uid)
                 .bind(UpdateAction::Update)
                 .bind(&req.name)
                 .bind(req.gender)
                 .bind(&req.language)
-                .execute(&mut tx)
+                .fetch_one(&mut tx)
                 .await
-                .map_err(InternalServerError)?.last_insert_rowid())
+                .map_err(InternalServerError)?;
+            Some(new_log_id.0)
         } else {
             None
         };
@@ -846,22 +847,22 @@ impl ApiUser {
         // update sqlite
         let mut tx = state.db_pool.begin().await.map_err(InternalServerError)?;
 
-        sqlx::query("update user set avatar_updated_at = ? where uid = ?")
+        sqlx::query("update \"user\" set avatar_updated_at = ? where uid = ?")
             .bind(now)
             .bind(token.uid)
             .execute(&mut tx)
             .await
             .map_err(InternalServerError)?;
 
-        let log_id =
-            sqlx::query("insert into user_log (uid, action, avatar_updated_at) values (?, ?, ?)")
+        let new_log_id: (i64,) =
+            sqlx::query_as("insert into user_log (uid, action, avatar_updated_at) values (?, ?, ?) RETURNING id")
                 .bind(token.uid)
                 .bind(UpdateAction::Update)
                 .bind(now)
-                .execute(&mut tx)
+                .fetch_one(&mut tx)
                 .await
-                .map_err(InternalServerError)?
-                .last_insert_rowid();
+                .map_err(InternalServerError)?;
+        let log_id = new_log_id.0;
 
         tx.commit().await.map_err(InternalServerError)?;
 
@@ -1522,7 +1523,7 @@ const fn default_get_history_messages_limit() -> usize {
 
 async fn fetch_user_log(
     cache: &Cache,
-    db_pool: &SqlitePool,
+    db_pool: &PgPool,
     users_version: Option<i64>,
 ) -> Result<Option<Message>> {
     match users_version {
