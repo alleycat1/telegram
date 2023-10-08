@@ -1,6 +1,6 @@
 create table user_tmp
 (
-    uid               integer primary key not null,
+    uid               SERIAL primary key not null,
     name              text not null,
     password          text,
     email             text,
@@ -12,9 +12,5 @@ create table user_tmp
     created_at        timestamp           not null default current_timestamp,
     updated_at        timestamp           not null default current_timestamp
 );
-
-CREATE SEQUENCE "user_tmp_sequence" ;
-ALTER SEQUENCE "user_tmp_sequence"
-OWNED BY "user_tmp"."uid";
 
 create unique index user_tmp_email on "user" (email);

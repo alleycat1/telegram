@@ -192,7 +192,6 @@ impl State {
 
         let now = DateTime::now();
 
-        // update sqlite
         let mut tx = self.db_pool.begin().await.map_err(InternalServerError)?;
 
         // insert into user table
@@ -201,7 +200,42 @@ impl State {
         } else {
             DateTime::zero()
         };
-        let sql = "insert into \"user\" (name, password, email, gender, language, is_admin, create_by, avatar_updated_at, status, created_at, updated_at, is_guest, webhook_url, is_bot) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING uid";
+
+        println!("username: {}", create_user.name);
+        println!("password: {}", password.unwrap_or(""));
+        println!("email: {}" , email.unwrap_or(""));
+        println!("gender: {}",create_user.gender);
+        println!("is_admin: {}",create_user.is_admin);
+        println!("create_by: {}",create_user.create_by.type_name());
+        println!("UserStatus: {}",i8::from(UserStatus::Normal));
+        println!("is_guest: {}",is_guest);
+        println!("webhook_url: {}",create_user.webhook_url.unwrap_or(""));
+        println!("is_bot: {}",create_user.is_bot);
+
+
+        /*
+        let sql = "insert into \"user\" (name, password, email, gender, language, is_admin, create_by, avatar_updated_at, status, created_at, updated_at, is_guest, webhook_url, is_bot) values ($1, $2, $3, $4, 'en_US', $5, $6, now(), $7, now(), now(), $8, $9, $10) RETURNING uid";
+        let new_uid : (i64,)  = sqlx::query_as(sql)
+            .bind(create_user.name)
+            .bind(password.unwrap_or(""))
+            .bind(email.unwrap_or(""))
+            .bind(create_user.gender)
+            //.bind(&language)
+            .bind(create_user.is_admin)
+            .bind(create_user.create_by.type_name())
+            //.bind(avatar_updated_at)
+            .bind(i8::from(UserStatus::Normal))
+            //.bind(now)
+            //.bind(now)
+            .bind(is_guest)
+            .bind(create_user.webhook_url.unwrap_or(""))
+            .bind(create_user.is_bot)
+            .fetch_one(&mut tx)
+            .await
+            .map_err(InternalServerError)?;
+        */
+        let sql = "insert into \"user\" (name, password, email, gender, language, is_admin, create_by, avatar_updated_at, status, created_at, updated_at, is_guest, webhook_url, is_bot) 
+                        values ($1, $2, $3, $4, $5, $6, $7, now(), $8, now(), now(), $9, $10, $11) RETURNING uid";
         let new_uid : (i64,)  = sqlx::query_as(sql)
             .bind(create_user.name)
             .bind(password)
@@ -210,17 +244,15 @@ impl State {
             .bind(&language)
             .bind(create_user.is_admin)
             .bind(create_user.create_by.type_name())
-            .bind(avatar_updated_at)
             .bind(i8::from(UserStatus::Normal))
-            .bind(now)
-            .bind(now)
             .bind(is_guest)
-            .bind(create_user.webhook_url)
+            .bind(create_user.webhook_url.unwrap_or(""))
             .bind(create_user.is_bot)
             .fetch_one(&mut tx)
             .await
             .map_err(InternalServerError)?;
         let uid = new_uid.0;
+        println!("uid: {}",uid);
 
         if let Some(avatar) = create_user.avatar {
             let _ = self.save_avatar(uid, avatar);
@@ -229,7 +261,7 @@ impl State {
         match &create_user.create_by {
             CreateUserBy::Google { email } => {
                 // insert into google_auth
-                let sql = "insert into google_auth (email, uid) values (?, ?)";
+                let sql = "insert into google_auth (email, uid) values ($1, $2)";
                 sqlx::query(sql)
                     .bind(email)
                     .bind(uid)
@@ -239,7 +271,7 @@ impl State {
             }
             CreateUserBy::Github { username } => {
                 // insert into google_auth
-                let sql = "insert into github_auth (username, uid) values (?, ?)";
+                let sql = "insert into github_auth (username, uid) values ($1, $2)";
                 sqlx::query(sql)
                     .bind(username)
                     .bind(uid)
@@ -251,7 +283,7 @@ impl State {
                 issuer, subject, ..
             } => {
                 // insert into openid_connect
-                let sql = "insert into openid_connect (issuer, subject, uid) values (?, ?, ?)";
+                let sql = "insert into openid_connect (issuer, subject, uid) values ($1, $2, $3)";
                 sqlx::query(sql)
                     .bind(issuer)
                     .bind(subject)
@@ -262,7 +294,7 @@ impl State {
             }
             CreateUserBy::MetaMask { public_address } => {
                 // insert into metamask_auth
-                let sql = "insert into metamask_auth (public_address, uid) values (?, ?)";
+                let sql = "insert into metamask_auth (public_address, uid) values ($1, $2)";
                 sqlx::query(sql)
                     .bind(public_address)
                     .bind(uid)
@@ -271,7 +303,7 @@ impl State {
                     .map_err(InternalServerError)?;
             }
             CreateUserBy::ThirdParty { thirdparty_uid, .. } => {
-                let sql = "insert into third_party_users (userid, uid) values (?, ?)";
+                let sql = "insert into third_party_users (userid, uid) values ($1, $2)";
                 sqlx::query(sql)
                     .bind(thirdparty_uid)
                     .bind(uid)
@@ -284,7 +316,7 @@ impl State {
 
         let log_id = if !is_guest {
             // insert into user_log table
-            let sql = "insert into user_log (uid, action, email, name, gender, language, avatar_updated_at, is_admin, is_bot) values (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id";
+            let sql = "insert into user_log (uid, action, email, name, gender, language, avatar_updated_at, is_admin, is_bot) values ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id";
             let new_log_id : (i64,) = sqlx::query_as(sql)
                 .bind(uid)
                 .bind(UpdateAction::Create)

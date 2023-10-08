@@ -30,18 +30,6 @@ impl<'a> sqlx::Decode<'a, sqlx::Postgres> for UpdateAction {
     }
 }
 
-/*
-impl<'a> sqlx::Encode<'a, sqlx::Sqlite> for UpdateAction {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<sqlx::sqlite::SqliteArgumentValue<'a>>,
-    ) -> sqlx::encode::IsNull {
-        buf.push(SqliteArgumentValue::Int((*self).into()));
-        sqlx::encode::IsNull::No
-    }
-}
-*/
-
 impl<'a> sqlx::Encode<'a, sqlx::Postgres> for UpdateAction {
     fn encode_by_ref(
         &self,

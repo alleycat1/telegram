@@ -450,7 +450,7 @@ impl State {
             ) = res?;
 
             let devices = sqlx::query_as::<_, (String, Option<String>)>(
-                "select device, device_token from device where uid = ?",
+                "select device, device_token from device where uid = $1",
             )
             .bind(uid)
             .fetch_all(db)
@@ -468,7 +468,7 @@ impl State {
                 })
                 .collect();
 
-            let sql = "select mute_uid, mute_gid, expired_at from mute where uid = ?";
+            let sql = "select mute_uid, mute_gid, expired_at from mute where uid = $1";
             let mute = sqlx::query_as::<_, (Option<i64>, Option<i64>, Option<DateTime>)>(sql)
                 .bind(uid)
                 .fetch_all(db)
@@ -488,7 +488,7 @@ impl State {
             }
 
             let sql =
-                "select target_uid, target_gid, expires_in from burn_after_reading where uid = ?";
+                "select target_uid, target_gid, expires_in from burn_after_reading where uid = $1";
             let burn_after_reading = sqlx::query_as::<_, (Option<i64>, Option<i64>, i64)>(sql)
                 .bind(uid)
                 .fetch_all(db)
@@ -507,7 +507,7 @@ impl State {
                 }
             }
 
-            let sql = "select target_uid, target_gid, mid from read_index where uid = ?";
+            let sql = "select target_uid, target_gid, mid from read_index where uid = $1";
             let read_index = sqlx::query_as::<_, (Option<i64>, Option<i64>, i64)>(sql)
                 .bind(uid)
                 .fetch_all(db)
@@ -526,7 +526,7 @@ impl State {
                 }
             }
 
-            let sql = "select id, name, key, created_at, last_used from `bot_key` where uid = ?";
+            let sql = "select id, name, key, created_at, last_used from bot_key where uid = $1";
             let bot_keys =
                 sqlx::query_as::<_, (i64, String, String, DateTime, Option<DateTime>)>(sql)
                     .bind(uid)
@@ -601,7 +601,7 @@ impl State {
         .fetch(db);
         while let Some(res) = stream.next().await {
             // load pinned messages
-            let sql = "select mid, created_by, created_at from pinned_message where gid = ?";
+            let sql = "select mid, created_by, created_at from pinned_message where gid = $1";
             let ids = sqlx::query_as::<_, (i64, i64, DateTime)>(sql)
                 .fetch_all(db)
                 .await?;
@@ -838,10 +838,9 @@ impl State {
     pub async fn clean_mute(&self) {
         let now = DateTime::now();
 
-        // clean in sqlite
         if let Err(err) =
-            sqlx::query("delete from mute where expired_at notnull and expired_at < ?")
-                .bind(now)
+            sqlx::query("delete from mute where expired_at notnull and expired_at < now()")
+                //.bind(now)
                 .execute(&self.db_pool)
                 .await
         {
@@ -885,7 +884,7 @@ impl State {
 
             for user in cache.users.values() {
                 for (id, bot_key) in &user.bot_keys {
-                    sqlx::query("update `bot_key` set last_used = ? where id = ?")
+                    sqlx::query("update bot_key set last_used = $1 where id = $2")
                         .bind(bot_key.last_used)
                         .bind(id)
                         .execute(&mut tx)
@@ -986,7 +985,7 @@ impl State {
         T: DynamicConfig,
         F: FnOnce() -> DynamicConfigEntry<T>,
     {
-        let sql = "select enabled, value from config where name = ?";
+        let sql = "select enabled, value from config where name = $1";
         match sqlx::query_as::<_, (bool, String)>(sql)
             .bind(T::name())
             .fetch_optional(&self.db_pool)
@@ -1005,7 +1004,7 @@ impl State {
         entry: DynamicConfigEntry<T>,
     ) -> anyhow::Result<()> {
         let sql = r#"
-        insert into config (name, enabled, value) values (?, ?, ?)
+        insert into config (name, enabled, value) values ($1, $2, $3)
             on conflict (name) do update set enabled = excluded.enabled, value = excluded.value
         "#;
         sqlx::query(sql)
@@ -1072,7 +1071,7 @@ impl State {
 
     pub async fn clean_guest(&self) {
         if let Ok(users) = sqlx::query_as::<_, (i64,)>(
-            "select uid from user where is_guest = true and datetime('now', '-7 days') >= created_at",
+            "select uid from \"user\" where is_guest = true and (CURRENT_TIMESTAMP - INTERVAL '7 days') >= created_at",
         )
         .fetch_all::<_>(&self.db_pool)
         .await
@@ -1094,7 +1093,7 @@ impl State {
         let mut tx = self.db_pool.begin().await.map_err(InternalServerError)?;
 
         // delete from user table
-        sqlx::query("delete from \"user\" where uid = ?")
+        sqlx::query("delete from \"user\" where uid = $1")
             .bind(uid)
             .execute(&mut tx)
             .await
@@ -1102,7 +1101,7 @@ impl State {
 
         let log_id = if !is_guest {
             // insert into user_log table
-            let new_log_id : (i64,) = sqlx::query_as("insert into user_log (uid, action) values (?, ?) RETURNING id")
+            let new_log_id : (i64,) = sqlx::query_as("insert into user_log (uid, action) values ($1, $2) RETURNING id")
                 .bind(uid)
                 .bind(UpdateAction::Delete)
                 .fetch_one(&mut tx)
@@ -1491,7 +1490,7 @@ mod tests {
 
             for (uid, users, groups) in &items {
                 let mute = sqlx::query_as::<_, (Option<i64>, Option<i64>)>(
-                    "select mute_uid, mute_gid from mute where uid = ?",
+                    "select mute_uid, mute_gid from mute where uid = $1",
                 )
                 .bind(uid)
                 .fetch_all(&state.db_pool)

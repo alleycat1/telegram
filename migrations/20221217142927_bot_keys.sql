@@ -1,5 +1,5 @@
 create table bot_key (
-    id integer primary key not null,
+    id SERIAL primary key not null,
     uid integer not null,
     name text not null,
     key text not null,
@@ -7,10 +7,6 @@ create table bot_key (
     last_used timestamp,
     foreign key (uid) references "user" (uid) on delete cascade
 );
-
-CREATE SEQUENCE "bot_key_sequence" ;
-ALTER SEQUENCE "bot_key_sequence"
-OWNED BY "bot_key"."id";
 
 create index bot_key_uid on bot_key (uid);
 

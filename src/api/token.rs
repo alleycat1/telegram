@@ -532,7 +532,7 @@ impl ApiToken {
         let public_address = public_address.0.to_lowercase();
         let nonce = textnonce::TextNonce::new();
         let sql = r#"
-        insert into metamask_nonce (public_address, nonce) values (?, ?)
+        insert into metamask_nonce (public_address, nonce) values ($1, $2)
             on conflict (public_address) do update set nonce = excluded.nonce
             "#;
         sqlx::query(sql)
@@ -727,7 +727,7 @@ impl ApiToken {
                 let payload = parse_google_id_token(&id_token)
                     .await
                     .map_err(|err| poem::Error::from((StatusCode::BAD_REQUEST, err)))?;
-                let sql = "select uid from google_auth where email = ?";
+                let sql = "select uid from google_auth where email = $1";
                 match sqlx::query_as::<_, (i64,)>(sql)
                     .bind(&payload.email)
                     .fetch_optional(&state.db_pool)
@@ -752,7 +752,7 @@ impl ApiToken {
                             .map(|(uid, _)| *uid);
 
                         if let Some(uid) = uid {
-                            let sql = "insert into google_auth (email, uid) values (?, ?)";
+                            let sql = "insert into google_auth (email, uid) values ($1, $2)";
                             sqlx::query(sql)
                                 .bind(&payload.email)
                                 .bind(uid)
@@ -807,7 +807,7 @@ impl ApiToken {
                 let github_userinfo = github_fetch_user_info(&token)
                     .await
                     .map_err(|err| poem::Error::from((StatusCode::BAD_REQUEST, err)))?;
-                let sql = "select uid from github_auth where username = ?";
+                let sql = "select uid from github_auth where username = $1";
                 match sqlx::query_as::<_, (i64,)>(sql)
                     .bind(&github_userinfo.username)
                     .fetch_optional(&state.db_pool)
@@ -830,7 +830,7 @@ impl ApiToken {
                             .find(|(_, user)| user.email.as_ref() == github_userinfo.email.as_ref())
                             .map(|(uid, _)| *uid);
                         if let Some(uid) = uid {
-                            let sql = "insert into github_auth (username, uid) values (?, ?)";
+                            let sql = "insert into github_auth (username, uid) values ($1, $2)";
                             sqlx::query(sql)
                                 .bind(&github_userinfo.username)
                                 .bind(uid)
@@ -914,7 +914,7 @@ impl ApiToken {
                         .map(|(_, picture)| picture.to_string())
                 });
 
-                let sql = "select uid from openid_connect where issuer = ? and subject = ?";
+                let sql = "select uid from openid_connect where issuer = $1 and subject = $2";
                 match sqlx::query_as::<_, (i64,)>(sql)
                     .bind(&issuer)
                     .bind(&subject)
@@ -977,7 +977,7 @@ impl ApiToken {
                     return Ok(LoginApiResponse::InvalidAccount);
                 }
 
-                let sql = "select uid from metamask_auth where public_address = ?";
+                let sql = "select uid from metamask_auth where public_address = $1";
                 match sqlx::query_as::<_, (i64,)>(sql)
                     .bind(&public_address)
                     .fetch_optional(&state.db_pool)
@@ -1028,7 +1028,7 @@ impl ApiToken {
                     return Ok(LoginApiResponse::InvalidAccount);
                 }
 
-                let sql = "select uid from third_party_users where userid = ?";
+                let sql = "select uid from third_party_users where userid = $1";
                 match sqlx::query_as::<_, (i64,)>(sql)
                     .bind(&info.userid)
                     .fetch_optional(&state.db_pool)
@@ -1085,7 +1085,7 @@ impl ApiToken {
                 match parse_google_id_token(&id_token.id_token).await {
                     Ok(GoogleIdTokenPayload { email, .. }) => {
                         let email = email.to_lowercase();
-                        let sql = "insert into google_auth (email, uid) values (?, ?)";
+                        let sql = "insert into google_auth (email, uid) values ($1, $2)";
                         sqlx::query(sql)
                             .bind(email)
                             .bind(token.uid)
@@ -1103,7 +1103,7 @@ impl ApiToken {
                 let github_token = github_fetch_token(&code.code, &state).await?;
                 match github_fetch_user_info(&github_token).await {
                     Ok(GithubUserInfo { username, .. }) => {
-                        let sql = "insert into github_auth (username, uid) values (?, ?)";
+                        let sql = "insert into github_auth (username, uid) values ($1, $2)";
                         sqlx::query(sql)
                             .bind(username)
                             .bind(token.uid)
@@ -1146,7 +1146,7 @@ impl ApiToken {
                     Err(_) => return Ok(BindApiResponse::InvalidCredential),
                 };
 
-                let sql = "insert into openid_connect (issuer, subject, uid) values (?, ?, ?)";
+                let sql = "insert into openid_connect (issuer, subject, uid) values ($1, $2, $3)";
                 sqlx::query(sql)
                     .bind(&issuer)
                     .bind(id_token.subject().as_str())
@@ -1172,7 +1172,7 @@ impl ApiToken {
                     return Ok(BindApiResponse::InvalidCredential);
                 }
 
-                let sql = "insert into metamask_auth (public_address, uid) values (?, ?)";
+                let sql = "insert into metamask_auth (public_address, uid) values ($1, $2)";
                 sqlx::query(sql)
                     .bind(public_address)
                     .bind(token.uid)
@@ -1238,7 +1238,7 @@ impl ApiToken {
         }
 
         let (prev_refresh_token,) = match sqlx::query_as::<_, (String,)>(
-            "select token from refresh_token where uid = ? and device = ?",
+            "select token from refresh_token where uid = $1 and device = $2",
         )
         .bind(current_user1.uid)
         .bind(&current_user1.device)
@@ -1262,7 +1262,7 @@ impl ApiToken {
         )
         .map_err(InternalServerError)?;
 
-        sqlx::query("update refresh_token set token = ? where uid = ? and device = ?")
+        sqlx::query("update refresh_token set token = $1 where uid = $2 and device = $3")
             .bind(&refresh_token)
             .bind(current_user1.uid)
             .bind(current_user1.device)
@@ -1289,14 +1289,14 @@ impl ApiToken {
         // begin transaction
         let mut tx = state.db_pool.begin().await.map_err(InternalServerError)?;
 
-        sqlx::query("delete from refresh_token where uid = ? and device = ?")
+        sqlx::query("delete from refresh_token where uid = $1 and device = $2")
             .bind(token.uid)
             .bind(&token.device)
             .execute(&mut tx)
             .await
             .map_err(InternalServerError)?;
 
-        sqlx::query("delete from device where uid = ? and device = ?")
+        sqlx::query("delete from device where uid = $1 and device = $2")
             .bind(token.uid)
             .bind(&token.device)
             .execute(&mut tx)
@@ -1335,8 +1335,7 @@ impl ApiToken {
             None => return Err(Error::from_status(StatusCode::NOT_FOUND)),
         };
 
-        // update sqlite
-        let sql = "update device set device_token = ?, updated_at = ? where uid = ? and device = ?";
+        let sql = "update device set device_token = $1, updated_at = $2 where uid = $3 and device = $4";
         sqlx::query(sql)
             .bind(&req.device_token)
             .bind(DateTime::now())
@@ -1390,7 +1389,7 @@ pub async fn do_login(
 
     sqlx::query(
         r#"
-        insert into refresh_token (uid, device, token) values (?, ?, ?)
+        insert into refresh_token (uid, device, token) values ($1, $2, $3)
             on conflict (uid, device) do update set token = excluded.token
         "#,
     )
@@ -1404,7 +1403,7 @@ pub async fn do_login(
     // update device token
     sqlx::query(
         r#"
-        insert into device (uid, device, device_token) values (?, ?, ?)
+        insert into device (uid, device, device_token) values ($1, $2, $3)
             on conflict (uid, device) do update set device_token = excluded.device_token
         "#,
     )
@@ -1672,7 +1671,7 @@ async fn check_metamask_public_address(
     if signature.len() < 64 {
         return Ok(false);
     }
-    let sql = "select nonce from metamask_nonce where public_address = ?";
+    let sql = "select nonce from metamask_nonce where public_address = $1";
     let db_nonce = sqlx::query_as::<_, (String,)>(sql)
         .bind(public_address)
         .fetch_optional(&state.db_pool)
@@ -1692,7 +1691,7 @@ async fn check_metamask_public_address(
 }
 
 async fn get_credential_google(state: &State, uid: i64) -> anyhow::Result<Option<String>> {
-    let sql = "select email from google_auth where uid = ?";
+    let sql = "select email from google_auth where uid = $1";
     Ok(sqlx::query_as::<_, (String,)>(sql)
         .bind(uid)
         .fetch_optional(&state.db_pool)
@@ -1701,7 +1700,7 @@ async fn get_credential_google(state: &State, uid: i64) -> anyhow::Result<Option
 }
 
 async fn get_credential_github(state: &State, uid: i64) -> anyhow::Result<Option<String>> {
-    let sql = "select username from github_auth where uid = ?";
+    let sql = "select username from github_auth where uid = $1";
     Ok(sqlx::query_as::<_, (String,)>(sql)
         .bind(uid)
         .fetch_optional(&state.db_pool)
@@ -1710,7 +1709,7 @@ async fn get_credential_github(state: &State, uid: i64) -> anyhow::Result<Option
 }
 
 async fn get_credential_metamask(state: &State, uid: i64) -> anyhow::Result<Option<String>> {
-    let sql = "select public_address from metamask_auth where uid = ?";
+    let sql = "select public_address from metamask_auth where uid = $1";
     Ok(sqlx::query_as::<_, (String,)>(sql)
         .bind(uid)
         .fetch_optional(&state.db_pool)
@@ -1719,7 +1718,7 @@ async fn get_credential_metamask(state: &State, uid: i64) -> anyhow::Result<Opti
 }
 
 async fn get_credentials_openid(state: &State, uid: i64) -> anyhow::Result<Vec<String>> {
-    let sql = "select issuer from openid_connect where uid = ?";
+    let sql = "select issuer from openid_connect where uid = $1";
     Ok(sqlx::query_as::<_, (String,)>(sql)
         .bind(uid)
         .fetch_all(&state.db_pool)
@@ -1952,7 +1951,7 @@ mod tests {
         let nonce = "Example `personal_sign` message";
         let signature = "0x73043b9af49b11c504962664991020c6a2a7d88a022fc9917e1ec05fa3ea35b75b193cd6e54dfbb8840508908feee688f7bc9fd408fc6c479d0706568acd5df11c";
 
-        sqlx::query("insert into metamask_nonce (public_address, nonce) values (?, ?)")
+        sqlx::query("insert into metamask_nonce (public_address, nonce) values ($1, $2)")
             .bind(public_address)
             .bind(nonce)
             .execute(&server.state().db_pool)
@@ -2008,7 +2007,7 @@ mod tests {
         );
 
         let device_token2 = sqlx::query_as::<_, (Option<String>,)>(
-            "select device_token from device where uid = ? and device = ?",
+            "select device_token from device where uid = $1 and device = $2",
         )
         .bind(1)
         .bind("web")
@@ -2041,7 +2040,7 @@ mod tests {
             .is_none());
 
         let device_token2 = sqlx::query_as::<_, (Option<String>,)>(
-            "select device_token from device where uid = ? and device = ?",
+            "select device_token from device where uid = $1 and device = $2",
         )
         .bind(1)
         .bind("web")

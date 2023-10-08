@@ -302,18 +302,18 @@ impl ApiAdminUser {
 
         // update user table
         let sql = format!(
-            "update \"user\" set {} where uid = ?",
+            "update \"user\" set {} where uid = $1",
             req.password
                 .iter()
-                .map(|_| "password = ?")
-                .chain(req.email.iter().map(|_| "email = ?"))
-                .chain(req.name.iter().map(|_| "name = ?"))
-                .chain(req.gender.iter().map(|_| "gender = ?"))
-                .chain(req.language.iter().map(|_| "language = ?"))
-                .chain(req.is_admin.iter().map(|_| "is_admin = ?"))
-                .chain(req.status.iter().map(|_| "status = ?"))
-                .chain(req.webhook_url.iter().map(|_| "webhook_url = ?"))
-                .chain(Some("updated_at = ?"))
+                .map(|_| "password = $2")
+                .chain(req.email.iter().map(|_| "email = $3"))
+                .chain(req.name.iter().map(|_| "name = $4"))
+                .chain(req.gender.iter().map(|_| "gender = $5"))
+                .chain(req.language.iter().map(|_| "language = $6"))
+                .chain(req.is_admin.iter().map(|_| "is_admin = $7"))
+                .chain(req.status.iter().map(|_| "status = $8"))
+                .chain(req.webhook_url.iter().map(|_| "webhook_url = $9"))
+                .chain(Some("updated_at = now()"))
                 .join(", ")
         );
 
@@ -344,14 +344,14 @@ impl ApiAdminUser {
         }
 
         query
-            .bind(now)
+            //.bind(now)
             .bind(uid.0)
             .execute(&mut tx)
             .await
             .map_err(InternalServerError)?;
 
         // insert into user_log table
-        let sql = "insert into user_log (uid, action, email, name, gender, is_admin, language) values (?, ?, ?, ?, ?, ?, ?) RETURNING id";
+        let sql = "insert into user_log (uid, action, email, name, gender, is_admin, language) values ($1, $2, $3, $4, $5, $6, $7) RETURNING id";
         let new_log_id: (i64,) = sqlx::query_as(sql)
             .bind(uid.0)
             .bind(UpdateAction::Update)
@@ -460,21 +460,20 @@ impl ApiAdminUser {
         // write to file
         state.save_avatar(uid.0, &data)?;
 
-        // update sqlite
         let mut tx = state.db_pool.begin().await.map_err(InternalServerError)?;
 
-        sqlx::query("update user set avatar_updated_at = ? where uid = ?")
-            .bind(now)
+        sqlx::query("update user set avatar_updated_at = now() where uid = $1")
+            //.bind(now)
             .bind(uid.0)
             .execute(&mut tx)
             .await
             .map_err(InternalServerError)?;
 
         let new_log_id: (i64,) =
-            sqlx::query_as("insert into user_log (uid, action, avatar_updated_at) values (?, ?, ?) RETURNING id")
+            sqlx::query_as("insert into user_log (uid, action, avatar_updated_at) values ($1, $2, now()) RETURNING id")
                 .bind(uid.0)
                 .bind(UpdateAction::Update)
-                .bind(now)
+                //.bind(now)
                 .fetch_one(&mut tx)
                 .await
                 .map_err(InternalServerError)?;
@@ -533,14 +532,13 @@ impl ApiAdminUser {
 
         let api_key = create_api_key(uid.0, &state.0.key_config.read().await.server_key);
 
-        // update sqlite
         let now = DateTime::now();
         let new_key_id:(i64,) =
-            sqlx::query_as("insert into `bot_key` (uid, name, key, created_at) values (?, ?, ?, ?) RETURNING id")
+            sqlx::query_as("insert into bot_key (uid, name, key, created_at) values ($1, $2, $3, now()) RETURNING id")
                 .bind(uid.0)
                 .bind(&req.name)
                 .bind(&api_key)
-                .bind(now)
+                //.bind(now)
                 .fetch_one(&state.db_pool)
                 .await
                 .map_err(InternalServerError)?;
@@ -583,8 +581,7 @@ impl ApiAdminUser {
             return Ok(DeleteBotApiKeyResponse::KeyNotFound);
         }
 
-        // update sqlite
-        sqlx::query("delete from `bot_key` where id = ?")
+        sqlx::query("delete from bot_key where id = $1")
             .bind(kid.0)
             .execute(&state.db_pool)
             .await

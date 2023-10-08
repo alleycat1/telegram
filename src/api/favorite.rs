@@ -53,7 +53,7 @@ impl ApiFavorite {
         token: Token,
         req: Json<CreateFavoriteRequest>,
     ) -> Result<CreateFavoriteResponse> {
-        let sql = "select count(*) from favorite_archive where uid = ?";
+        let sql = "select count(*) from favorite_archive where uid = $1";
         let count = sqlx::query_as::<_, (i64,)>(sql)
             .fetch_one(&state.db_pool)
             .await
@@ -73,11 +73,11 @@ impl ApiFavorite {
             .map_err(InternalServerError)?;
 
         let now = DateTime::now();
-        let sql = "insert into favorite_archive (uid, archive_id, created_at) values (?, ?, ?)";
+        let sql = "insert into favorite_archive (uid, archive_id, created_at) values ($1, $2, now())";
         sqlx::query(sql)
             .bind(token.uid)
             .bind(&uuid)
-            .bind(now)
+            //.bind(now)
             .execute(&state.db_pool)
             .await
             .map_err(InternalServerError)?;
@@ -91,7 +91,7 @@ impl ApiFavorite {
     /// List all favorite archives
     #[oai(path = "/", method = "get")]
     async fn list(&self, state: Data<&State>, token: Token) -> Result<Json<Vec<FavoriteArchive>>> {
-        let sql = "select archive_id, created_at from favorite_archive where uid = ?";
+        let sql = "select archive_id, created_at from favorite_archive where uid = $1";
         let mut archives = sqlx::query_as::<_, (String, DateTime)>(sql)
             .bind(token.uid)
             .fetch_all(&state.db_pool)
@@ -115,7 +115,7 @@ impl ApiFavorite {
             return Err(Error::from_status(StatusCode::NOT_FOUND));
         }
 
-        sqlx::query("delete from favorite_archive where uid = ? and archive_id = ?")
+        sqlx::query("delete from favorite_archive where uid = $1 and archive_id = $2")
             .bind(token.uid)
             .bind(&id.0)
             .execute(&state.db_pool)

@@ -164,25 +164,24 @@ impl ApiGroup {
             }
         }
 
-        // insert to sqlite
         let mut tx = state.db_pool.begin().await.map_err(InternalServerError)?;
         let now = DateTime::now();
         let owner = if req.is_public { None } else { Some(token.uid) };
-        let sql = "insert into group (name, description, owner, is_public, created_at, updated_at) values (?, ?, ?, ?, ?, ?) RETURNING gid";
+        let sql = "insert into group (name, description, owner, is_public, created_at, updated_at) values ($1, $2, $3, $4, now(), now()) RETURNING gid";
         let new_gid: (i64,) = sqlx::query_as(sql)
             .bind(&req.0.name)
             .bind(req.0.description.as_deref().unwrap_or_default())
             .bind(owner)
             .bind(req.is_public)
-            .bind(now)
-            .bind(now)
+            //.bind(now)
+            //.bind(now)
             .fetch_one(&mut tx)
             .await
             .map_err(InternalServerError)?;
         let gid = new_gid.0;
 
         for id in &members {
-            sqlx::query("insert into group_user (gid, uid) values (?, ?)")
+            sqlx::query("insert into group_user (gid, uid) values ($1, $2)")
                 .bind(gid)
                 .bind(*id)
                 .execute(&mut tx)
@@ -284,9 +283,8 @@ impl ApiGroup {
         // write to file
         state.save_group_avatar(gid.0, &data)?;
 
-        // update sqlite
-        sqlx::query("update group set avatar_updated_at = ? where gid = ?")
-            .bind(now)
+        sqlx::query("update group set avatar_updated_at = now() where gid = $1")
+            //.bind(now)
             .bind(gid.0)
             .execute(&state.db_pool)
             .await
@@ -336,8 +334,7 @@ impl ApiGroup {
             _ => {}
         }
 
-        // update sqlite
-        sqlx::query("delete from group where gid = ?")
+        sqlx::query("delete from group where gid = $1")
             .bind(gid.0)
             .execute(&state.db_pool)
             .await
@@ -407,15 +404,14 @@ impl ApiGroup {
 
         let now = Utc::now();
 
-        // update sqlite
         let sql = format!(
-            "update group set {} where gid = ?",
+            "update group set {} where gid = $1",
             req.name
                 .iter()
-                .map(|_| "name = ?")
-                .chain(req.owner.iter().map(|_| "owner = ?"))
-                .chain(req.description.iter().map(|_| "description = ?"))
-                .chain(Some("updated_at = ?"))
+                .map(|_| "name = $2")
+                .chain(req.owner.iter().map(|_| "owner = $3"))
+                .chain(req.description.iter().map(|_| "description = $4"))
+                .chain(Some("updated_at = now()"))
                 .join(", ")
         );
 
@@ -431,7 +427,7 @@ impl ApiGroup {
         }
 
         query
-            .bind(now)
+            //.bind(now)
             .bind(gid.0)
             .execute(&state.db_pool)
             .await
@@ -507,7 +503,7 @@ impl ApiGroup {
         match (group.ty.is_public(), req.is_public) {
             (true, false) => {
                 // public to private
-                sqlx::query("update group set is_public = ?, owner = ? where gid = ?")
+                sqlx::query("update group set is_public = $1, owner = $2 where gid = $3")
                     .bind(false)
                     .bind(token.uid)
                     .bind(gid.0)
@@ -525,7 +521,7 @@ impl ApiGroup {
                 };
 
                 for uid in members {
-                    sqlx::query("insert into group_user (gid, uid) values (?, ?)")
+                    sqlx::query("insert into group_user (gid, uid) values ($1, $2)")
                         .bind(gid.0)
                         .bind(uid)
                         .execute(&mut tx)
@@ -535,7 +531,7 @@ impl ApiGroup {
             }
             (false, true) => {
                 // private to public
-                sqlx::query("update group set is_public = ?, owner = ? where gid = ?")
+                sqlx::query("update group set is_public = $1, owner = $2 where gid = $3")
                     .bind(true)
                     .bind(None::<i32>)
                     .bind(gid.0)
@@ -543,7 +539,7 @@ impl ApiGroup {
                     .await
                     .map_err(InternalServerError)?;
 
-                sqlx::query("delete from group_user where gid = ?")
+                sqlx::query("delete from group_user where gid = $1")
                     .bind(gid.0)
                     .execute(&mut tx)
                     .await
@@ -654,8 +650,7 @@ impl ApiGroup {
             }
         }
 
-        // update sqlite
-        sqlx::query("delete from group_user where gid = ? and uid = ?")
+        sqlx::query("delete from group_user where gid = $1 and uid = $2")
             .bind(gid.0)
             .bind(token.uid)
             .execute(&state.db_pool)
@@ -743,10 +738,9 @@ impl ApiGroup {
             }
         }
 
-        // update sqlite
         let mut tx = state.db_pool.begin().await.map_err(InternalServerError)?;
         for uid in members.iter() {
-            sqlx::query("insert into group_user (gid, uid) values (?, ?)")
+            sqlx::query("insert into group_user (gid, uid) values ($1, $2)")
                 .bind(gid.0)
                 .bind(uid)
                 .execute(&mut tx)
@@ -813,10 +807,9 @@ impl ApiGroup {
             }
         }
 
-        // update sqlite
         let mut tx = state.db_pool.begin().await.map_err(InternalServerError)?;
         for uid in members.iter() {
-            sqlx::query("delete from group_user where gid = ? and uid = ?")
+            sqlx::query("delete from group_user where gid = $1 and uid = $2")
                 .bind(gid.0)
                 .bind(uid)
                 .execute(&mut tx)
@@ -1019,12 +1012,12 @@ impl ApiGroup {
         // update database
         let now = DateTime::now();
         let sql =
-            "insert into pinned_message (gid, mid, created_by, created_at) values (?, ?, ?, ?)";
+            "insert into pinned_message (gid, mid, created_by, created_at) values ($1, $2, $3, now())";
         sqlx::query(sql)
             .bind(gid.0)
             .bind(req.mid)
             .bind(token.uid)
-            .bind(now)
+            //.bind(now)
             .execute(&state.db_pool)
             .await
             .map_err(InternalServerError)?;
@@ -1094,7 +1087,7 @@ impl ApiGroup {
         };
 
         // update database
-        let sql = "delete from pinned_message where gid = ? and mid = ?";
+        let sql = "delete from pinned_message where gid = $1 and mid = $2";
         sqlx::query(sql)
             .bind(gid.0)
             .bind(req.mid)

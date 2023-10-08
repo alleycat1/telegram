@@ -1,6 +1,6 @@
 create table "user"
 (
-    uid               integer primary key not null,
+    uid               SERIAL primary key not null,
     name              text not null,
     password          text,
     email             text,
@@ -8,14 +8,10 @@ create table "user"
     language          text                not null,
     is_admin          boolean             not null default false,
     create_by         text                not null,
-    avatar_updated_at timestamp           not null default '1970-01-01 00:00:00',
+    avatar_updated_at timestamp           not null default current_timestamp,
     created_at        timestamp           not null default current_timestamp,
     updated_at        timestamp           not null default current_timestamp
 );
-
-CREATE SEQUENCE "user_sequence" ;
-ALTER SEQUENCE "user_sequence"
-OWNED BY "user"."uid";
 
 create unique index "user_name" on "user" (name);
 create unique index "user_email" on "user" (email);
@@ -64,7 +60,7 @@ create table "device"
 
 create table "group"
 (
-    gid         integer primary key not null,
+    gid         SERIAL primary key not null,
     name        text      not null,
     owner       integer,
     is_public   bool      not null default false,
@@ -73,23 +69,14 @@ create table "group"
     updated_at  timestamp not null default current_timestamp
 );
 
-CREATE SEQUENCE "group_sequence" ;
-ALTER SEQUENCE "group_sequence"
-OWNED BY "group"."gid";
-
-
 create table "group_user"
 (
-    id  integer primary key not null,
+    id  SERIAL primary key not null,
     gid integer not null,
     uid integer not null,
     foreign key (gid) references "group" (gid) on delete cascade,
     foreign key (uid) references "user" (uid) on delete cascade
 );
-
-CREATE SEQUENCE "group_user_sequence" ;
-ALTER SEQUENCE "group_user_sequence"
-OWNED BY "group_user"."id";
 
 create unique index group_user_gid_uid on group_user (gid, uid);
 create index group_user_gid on group_user (gid);

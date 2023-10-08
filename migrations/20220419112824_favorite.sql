@@ -1,14 +1,10 @@
 create table favorite_archive
 (
-    id         integer primary key not null,
+    id         SERIAL primary key not null,
     uid        integer not null,
     archive_id text not null,
     created_at timestamp not null,
     foreign key (uid) references "user" (uid) on delete cascade
 );
-
-CREATE SEQUENCE "favorite_archive_sequence" ;
-ALTER SEQUENCE "favorite_archive_sequence"
-OWNED BY "favorite_archive"."id";
 
 create unique index favorite_archive_uid_archive_id on favorite_archive (uid, archive_id);

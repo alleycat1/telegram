@@ -4,6 +4,7 @@ use chrono::{TimeZone, Utc};
 use poem_openapi::registry::{MetaSchema, MetaSchemaRef};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use url::idna::punycode::encode_str;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct DateTime(pub chrono::DateTime<Utc>);
@@ -61,7 +62,7 @@ impl<'a> sqlx::Decode<'a, sqlx::Postgres> for DateTime {
     }
 }
 
-impl<'a> sqlx::Encode<'a, sqlx::Postgres> for DateTime {
+impl<'a> sqlx::Encode<'_, sqlx::Postgres> for DateTime {
     fn encode_by_ref(
         &self,
         buf: &mut sqlx::postgres::PgArgumentBuffer,

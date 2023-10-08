@@ -304,7 +304,7 @@ impl TestServer {
 
 async fn init_db(path: &Path) {
     std::fs::create_dir(path.join("db")).unwrap();
-    let dsn = "postgres://test:test@127.0.0.1/test"; //format!("sqlite:{}", path.join("db").join("db.sqlite").display());
+    let dsn = "postgres://test:test@127.0.0.1/test";
     Postgres::create_database(&dsn).await.unwrap();
     let db = PgPool::connect(&dsn).await.unwrap();
     MIGRATOR.run(&db).await.unwrap();

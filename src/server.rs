@@ -69,15 +69,10 @@ pub async fn create_state(config_path: &Path, config: Arc<Config>) -> Result<Sta
     std::fs::create_dir_all(config.system.avatar_dir()).expect("create avatars dir");
     std::fs::create_dir_all(config.system.group_avatar_dir()).expect("create group avatars dir");
 
-    // open sqlite db
-    let dsn = "postgres://test:test@127.0.0.1/test";//format!("sqlite:{}", config.system.sqlite_filename().display());
-    //if !config.system.sqlite_filename().exists() {
-    //    tracing::info!(dsn = dsn.as_str(), "create sqlite db.");
-    //    sqlx::Sqlite::create_database(&dsn).await?;
-    //}
+    let dsn = "postgres://postgres:postgres@127.0.0.1/welcome";
 
     tracing::info!(dsn, "open postgres db.");
-    let db_pool = sqlx::PgPool::connect(&dsn).await?; //SqlitePool::connect(&dsn).await?;
+    let db_pool = sqlx::PgPool::connect(&dsn).await?;
     MIGRATOR.run(&db_pool).await?;
 
     // open message db
@@ -207,7 +202,7 @@ async fn process_msg_updated(state: State, mut rx: mpsc::UnboundedReceiver<i64>)
 
                             // update database
                             if let Err(err) =
-                                sqlx::query("delete from pinned_message where gid = ? and mid = ?")
+                                sqlx::query("delete from pinned_message where gid = $1 and mid = $2")
                                     .bind(gid)
                                     .bind(mid)
                                     .execute(&state.db_pool)
@@ -305,7 +300,7 @@ pub async fn create_endpoint(state: State) -> impl Endpoint {
         .with(Cors::new().allow_credentials(true))
         .with(metrics)
         .inspect_err(|err: &sqlx::Error| {
-            tracing::error!(error = %err, "sqlite error");
+            tracing::error!(error = %err, "db error");
         })
         .data(state)
 }

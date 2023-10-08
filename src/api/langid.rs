@@ -62,18 +62,6 @@ impl<'a> sqlx::Decode<'a, sqlx::Postgres> for LangId {
     }
 }
 
-/*
-impl<'a> sqlx::Encode<'a, sqlx::Sqlite> for LangId {
-    fn encode_by_ref(
-        &self,
-        buf: &mut Vec<sqlx::sqlite::SqliteArgumentValue<'a>>,
-    ) -> sqlx::encode::IsNull {
-        buf.push(SqliteArgumentValue::Text(Cow::Owned(self.0.to_string())));
-        sqlx::encode::IsNull::No
-    }
-}
- */
-
 impl<'a> sqlx::Encode<'a, sqlx::Postgres> for LangId {
     fn encode_by_ref(
         &self,

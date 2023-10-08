@@ -431,8 +431,7 @@ impl ApiUser {
             let mut cache = state.cache.write().await;
             if let Some(group) = cache.groups.get_mut(&gid) {
                 if !group.ty.is_public() {
-                    // update sqlite
-                    sqlx::query("insert into group_user (gid, uid) values (?, ?)")
+                    sqlx::query("insert into group_user (gid, uid) values ($1, $2)")
                         .bind(gid)
                         .bind(uid)
                         .execute(&state.db_pool)
@@ -685,7 +684,7 @@ impl ApiUser {
         }
 
         // update database
-        let sql = "update \"user\" set password = ? where uid = ?";
+        let sql = "update \"user\" set password = $1 where uid = $2";
         sqlx::query(sql)
             .bind(&req.new_password)
             .bind(token.uid)
@@ -730,13 +729,13 @@ impl ApiUser {
 
         // update user table
         let sql = format!(
-            "update \"user\" set {} where uid = ?",
+            "update \"user\" set {} where uid = $1",
             req.name
                 .iter()
-                .map(|_| "name = ?")
-                .chain(req.gender.iter().map(|_| "gender = ?"))
-                .chain(req.language.iter().map(|_| "language = ?"))
-                .chain(Some("updated_at = ?"))
+                .map(|_| "name = $2")
+                .chain(req.gender.iter().map(|_| "gender = $3"))
+                .chain(req.language.iter().map(|_| "language = $4"))
+                .chain(Some("updated_at = now()"))
                 .join(", ")
         );
 
@@ -752,7 +751,7 @@ impl ApiUser {
         }
 
         query
-            .bind(now)
+            //.bind(now)
             .bind(token.uid)
             .execute(&mut tx)
             .await
@@ -761,7 +760,7 @@ impl ApiUser {
         // insert into user_log table
         let log_id = if req.name.is_some() || req.gender.is_some() && req.language.is_some() {
             let new_log_id: (i64,) = sqlx::query_as(
-                "insert into user_log (uid, action, name, gender, language) values (?, ?, ?, ?, ?) RETURNING id",
+                "insert into user_log (uid, action, name, gender, language) values ($1, $2, $3, $4, $5) RETURNING id",
             )
                 .bind(token.uid)
                 .bind(UpdateAction::Update)
@@ -844,21 +843,20 @@ impl ApiUser {
         // write to file
         state.save_avatar(token.uid, &data)?;
 
-        // update sqlite
         let mut tx = state.db_pool.begin().await.map_err(InternalServerError)?;
 
-        sqlx::query("update \"user\" set avatar_updated_at = ? where uid = ?")
-            .bind(now)
+        sqlx::query("update \"user\" set avatar_updated_at = now() where uid = $1")
+            //.bind(now)
             .bind(token.uid)
             .execute(&mut tx)
             .await
             .map_err(InternalServerError)?;
 
         let new_log_id: (i64,) =
-            sqlx::query_as("insert into user_log (uid, action, avatar_updated_at) values (?, ?, ?) RETURNING id")
+            sqlx::query_as("insert into user_log (uid, action, avatar_updated_at) values ($1, $2, now()) RETURNING id")
                 .bind(token.uid)
                 .bind(UpdateAction::Update)
-                .bind(now)
+                //.bind(now)
                 .fetch_one(&mut tx)
                 .await
                 .map_err(InternalServerError)?;
@@ -1024,7 +1022,7 @@ impl ApiUser {
     ) -> Result<()> {
         let mut cache = state.cache.write().await;
 
-        let rows_affected = sqlx::query("delete from device where uid = ? and device = ?")
+        let rows_affected = sqlx::query("delete from device where uid = $1 and device = $2")
             .bind(token.uid)
             .bind(&device.0)
             .execute(&state.db_pool)
@@ -1120,12 +1118,11 @@ impl ApiUser {
         let remove_user_list = req.0.remove_users;
         let remove_group_list = req.0.remove_groups;
 
-        // update sqlite
         let mut tx = state.db_pool.begin().await.map_err(InternalServerError)?;
 
         for item in &add_user_list {
             let sql = r#"
-                    insert into mute (uid, mute_uid, expired_at) values (?, ?, ?)
+                    insert into mute (uid, mute_uid, expired_at) values ($1, $2, $3)
                         on conflict (uid, mute_uid) do update set expired_at = excluded.expired_at
                     "#;
             sqlx::query(sql)
@@ -1139,7 +1136,7 @@ impl ApiUser {
 
         for item in &add_group_list {
             let sql = r#"
-                    insert into mute (uid, mute_gid, expired_at) values (?, ?, ?)
+                    insert into mute (uid, mute_gid, expired_at) values ($1, $2, $3)
                         on conflict (uid, mute_gid) do update set expired_at = excluded.expired_at
                     "#;
             sqlx::query(sql)
@@ -1152,7 +1149,7 @@ impl ApiUser {
         }
 
         for uid in &remove_user_list {
-            let sql = "delete from mute where uid = ? and mute_uid = ?";
+            let sql = "delete from mute where uid = $1 and mute_uid = $2";
             sqlx::query(sql)
                 .bind(token.uid)
                 .bind(uid)
@@ -1162,7 +1159,7 @@ impl ApiUser {
         }
 
         for gid in &remove_group_list {
-            let sql = "delete from mute where uid = ? and mute_gid = ?";
+            let sql = "delete from mute where uid = $1 and mute_gid = $2";
             sqlx::query(sql)
                 .bind(token.uid)
                 .bind(gid)
@@ -1253,13 +1250,12 @@ impl ApiUser {
             })
             .collect_vec();
 
-        // update sqlite
         let mut tx = state.db_pool.begin().await.map_err(InternalServerError)?;
 
         for item in &burn_after_reading_users {
             if item.expires_in > 0 {
                 let sql = r#"
-                    insert into burn_after_reading (uid, target_uid, expires_in) values (?, ?, ?)
+                    insert into burn_after_reading (uid, target_uid, expires_in) values ($1, $2, $3)
                         on conflict (uid, target_uid) do update set expires_in = excluded.expires_in
                     "#;
                 sqlx::query(sql)
@@ -1270,7 +1266,7 @@ impl ApiUser {
                     .await
                     .map_err(InternalServerError)?;
             } else {
-                let sql = "delete from burn_after_reading where uid = ? and target_uid = ?";
+                let sql = "delete from burn_after_reading where uid = $1 and target_uid = $2";
                 sqlx::query(sql)
                     .bind(token.uid)
                     .bind(item.uid)
@@ -1283,7 +1279,7 @@ impl ApiUser {
         for item in &burn_after_reading_groups {
             if item.expires_in > 0 {
                 let sql = r#"
-                    insert into burn_after_reading (uid, target_gid, expires_in) values (?, ?, ?)
+                    insert into burn_after_reading (uid, target_gid, expires_in) values ($1, $2, $3)
                         on conflict (uid, target_gid) do update set expires_in = excluded.expires_in
                     "#;
                 sqlx::query(sql)
@@ -1294,7 +1290,7 @@ impl ApiUser {
                     .await
                     .map_err(InternalServerError)?;
             } else {
-                let sql = "delete from burn_after_reading where uid = ? and target_gid = ?";
+                let sql = "delete from burn_after_reading where uid = $1 and target_gid = $2";
                 sqlx::query(sql)
                     .bind(token.uid)
                     .bind(item.gid)
@@ -1408,12 +1404,11 @@ impl ApiUser {
             return Ok(());
         }
 
-        // update sqlite
         let mut tx = state.db_pool.begin().await.map_err(InternalServerError)?;
 
         for item in &read_index_users {
             let sql = r#"
-                    insert into read_index (uid, target_uid, mid) values (?, ?, ?)
+                    insert into read_index (uid, target_uid, mid) values ($1, $2, $3)
                         on conflict (uid, target_uid) do update set mid = excluded.mid
                     "#;
             sqlx::query(sql)
@@ -1427,7 +1422,7 @@ impl ApiUser {
 
         for item in &read_index_groups {
             let sql = r#"
-                    insert into read_index (uid, target_gid, mid) values (?, ?, ?)
+                    insert into read_index (uid, target_gid, mid) values ($1, $2, $3)
                         on conflict (uid, target_gid) do update set mid = excluded.mid
                     "#;
             sqlx::query(sql)
@@ -1491,7 +1486,7 @@ impl ApiUser {
         // update device token
         sqlx::query(
             r#"
-        insert into device (uid, device, device_token) values (?, ?, ?)
+        insert into device (uid, device, device_token) values ($1, $2, $3)
             on conflict (uid, device) do update set device_token = excluded.device_token
         "#,
         )
@@ -1528,7 +1523,7 @@ async fn fetch_user_log(
 ) -> Result<Option<Message>> {
     match users_version {
         Some(users_version) => {
-            let sql = "select id, uid, action, email, name, gender, language, is_admin, is_bot, avatar_updated_at from user_log where id > ?";
+            let sql = "select id, uid, action, email, name, gender, language, is_admin, is_bot, avatar_updated_at from user_log where id > $1";
             let mut stream = sqlx::query_as::<
                 _,
                 (
