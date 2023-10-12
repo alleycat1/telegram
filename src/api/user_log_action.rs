@@ -15,17 +15,22 @@ pub enum UpdateAction {
 
 impl sqlx::Type<sqlx::Postgres> for UpdateAction {
     fn type_info() -> sqlx::postgres::PgTypeInfo {
-        i32::type_info()
+        //i32::type_info()
+        sqlx::postgres::PgTypeInfo::with_name("Int4")
     }
 
     fn compatible(ty: &sqlx::postgres::PgTypeInfo) -> bool {
+        let string_type = sqlx::postgres::PgTypeInfo::with_name("Int4");
+        string_type.oid() == ty.oid();
         i32::compatible(ty)
     }
 }
 
 impl<'a> sqlx::Decode<'a, sqlx::Postgres> for UpdateAction {
     fn decode(value: sqlx::postgres::PgValueRef<'a>) -> Result<Self, sqlx::error::BoxDynError> {
-        let n = i32::decode(value)?;
+        //let n = i32::decode(value)?;
+        let n : i32 = sqlx::postgres::decode::Decode::decode(value)?;
+        //let n : i32 = sqlx_postgres::decode::Decode<'r, sqlx_postgres::postgres::Pg>(value)?;
         Ok(Self::try_from(n)?)
     }
 }

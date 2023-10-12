@@ -346,7 +346,7 @@ impl ApiAdminUser {
         query
             //.bind(now)
             .bind(uid.0)
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await
             .map_err(InternalServerError)?;
 
@@ -360,7 +360,7 @@ impl ApiAdminUser {
             .bind(req.gender)
             .bind(req.is_admin)
             .bind(&req.language)
-            .fetch_one(&mut tx)
+            .fetch_one(&mut *tx)
             .await
             .map_err(InternalServerError)?;
         let log_id = new_log_id.0;
@@ -465,7 +465,7 @@ impl ApiAdminUser {
         sqlx::query("update user set avatar_updated_at = now() where uid = $1")
             //.bind(now)
             .bind(uid.0)
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await
             .map_err(InternalServerError)?;
 
@@ -474,7 +474,7 @@ impl ApiAdminUser {
                 .bind(uid.0)
                 .bind(UpdateAction::Update)
                 //.bind(now)
-                .fetch_one(&mut tx)
+                .fetch_one(&mut *tx)
                 .await
                 .map_err(InternalServerError)?;
         let log_id = new_log_id.0;

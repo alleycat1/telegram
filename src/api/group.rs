@@ -175,7 +175,7 @@ impl ApiGroup {
             .bind(req.is_public)
             //.bind(now)
             //.bind(now)
-            .fetch_one(&mut tx)
+            .fetch_one(&mut *tx)
             .await
             .map_err(InternalServerError)?;
         let gid = new_gid.0;
@@ -184,7 +184,7 @@ impl ApiGroup {
             sqlx::query("insert into group_user (gid, uid) values ($1, $2)")
                 .bind(gid)
                 .bind(*id)
-                .execute(&mut tx)
+                .execute(&mut *tx)
                 .await
                 .map_err(InternalServerError)?;
         }
@@ -507,7 +507,7 @@ impl ApiGroup {
                     .bind(false)
                     .bind(token.uid)
                     .bind(gid.0)
-                    .execute(&mut tx)
+                    .execute(&mut *tx)
                     .await
                     .map_err(InternalServerError)?;
                 let members = if !req.members.is_empty() {
@@ -524,7 +524,7 @@ impl ApiGroup {
                     sqlx::query("insert into group_user (gid, uid) values ($1, $2)")
                         .bind(gid.0)
                         .bind(uid)
-                        .execute(&mut tx)
+                        .execute(&mut *tx)
                         .await
                         .map_err(InternalServerError)?;
                 }
@@ -535,13 +535,13 @@ impl ApiGroup {
                     .bind(true)
                     .bind(None::<i32>)
                     .bind(gid.0)
-                    .execute(&mut tx)
+                    .execute(&mut *tx)
                     .await
                     .map_err(InternalServerError)?;
 
                 sqlx::query("delete from group_user where gid = $1")
                     .bind(gid.0)
-                    .execute(&mut tx)
+                    .execute(&mut *tx)
                     .await
                     .map_err(InternalServerError)?;
             }
@@ -743,7 +743,7 @@ impl ApiGroup {
             sqlx::query("insert into group_user (gid, uid) values ($1, $2)")
                 .bind(gid.0)
                 .bind(uid)
-                .execute(&mut tx)
+                .execute(&mut *tx)
                 .await
                 .map_err(InternalServerError)?;
         }
@@ -812,7 +812,7 @@ impl ApiGroup {
             sqlx::query("delete from group_user where gid = $1 and uid = $2")
                 .bind(gid.0)
                 .bind(uid)
-                .execute(&mut tx)
+                .execute(&mut *tx)
                 .await
                 .map_err(InternalServerError)?;
         }

@@ -1,6 +1,6 @@
 create table "user"
 (
-    uid               SERIAL primary key not null,
+    uid               SERIAL8 primary key not null,
     name              text not null,
     password          text,
     email             text,
@@ -60,7 +60,7 @@ create table "device"
 
 create table "group"
 (
-    gid         SERIAL primary key not null,
+    gid         SERIAL8 primary key not null,
     name        text      not null,
     owner       integer,
     is_public   bool      not null default false,
@@ -71,7 +71,7 @@ create table "group"
 
 create table "group_user"
 (
-    id  SERIAL primary key not null,
+    id  SERIAL8 primary key not null,
     gid integer not null,
     uid integer not null,
     foreign key (gid) references "group" (gid) on delete cascade,

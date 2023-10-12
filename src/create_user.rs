@@ -230,13 +230,15 @@ impl State {
             .bind(is_guest)
             .bind(create_user.webhook_url.unwrap_or(""))
             .bind(create_user.is_bot)
-            .fetch_one(&mut tx)
+            .fetch_one(&mut *tx)
             .await
             .map_err(InternalServerError)?;
         */
         let sql = "insert into \"user\" (name, password, email, gender, language, is_admin, create_by, avatar_updated_at, status, created_at, updated_at, is_guest, webhook_url, is_bot) 
                         values ($1, $2, $3, $4, $5, $6, $7, now(), $8, now(), now(), $9, $10, $11) RETURNING uid";
-        let new_uid : (i64,)  = sqlx::query_as(sql)
+        //let new_uid : (i64,)  = 
+        /*
+        let result = sqlx::query(sql)
             .bind(create_user.name)
             .bind(password)
             .bind(email)
@@ -248,10 +250,18 @@ impl State {
             .bind(is_guest)
             .bind(create_user.webhook_url.unwrap_or(""))
             .bind(create_user.is_bot)
-            .fetch_one(&mut tx)
+            .fetch_one(&mut *tx)
             .await
             .map_err(InternalServerError)?;
-        let uid = new_uid.0;
+        let uid = 0;
+        */
+        let rec = sqlx::query!("insert into \"user\" (name, password, email, gender, language, is_admin, create_by, avatar_updated_at, status, created_at, updated_at, is_guest, webhook_url, is_bot) 
+        values ($1, $2, $3, $4, $5, $6, $7, now(), $8, now(), now(), $9, $10, $11) RETURNING uid", create_user.name, password, email, create_user.gender, LangId::to_string(&language), create_user.is_admin, create_user.create_by.type_name(), 
+                                i8::from(UserStatus::Normal).to_string(), is_guest, create_user.webhook_url.unwrap_or(""), create_user.is_bot)
+                                .fetch_one(&mut *tx).await.expect("Unable to insert a domain");
+        let uid : i64 = rec.uid;
+
+        //let uid = result.uid;
         println!("uid: {}",uid);
 
         if let Some(avatar) = create_user.avatar {
@@ -265,7 +275,7 @@ impl State {
                 sqlx::query(sql)
                     .bind(email)
                     .bind(uid)
-                    .execute(&mut tx)
+                    .execute(&mut *tx)
                     .await
                     .map_err(InternalServerError)?;
             }
@@ -275,7 +285,7 @@ impl State {
                 sqlx::query(sql)
                     .bind(username)
                     .bind(uid)
-                    .execute(&mut tx)
+                    .execute(&mut *tx)
                     .await
                     .map_err(InternalServerError)?;
             }
@@ -288,7 +298,7 @@ impl State {
                     .bind(issuer)
                     .bind(subject)
                     .bind(uid)
-                    .execute(&mut tx)
+                    .execute(&mut *tx)
                     .await
                     .map_err(InternalServerError)?;
             }
@@ -298,7 +308,7 @@ impl State {
                 sqlx::query(sql)
                     .bind(public_address)
                     .bind(uid)
-                    .execute(&mut tx)
+                    .execute(&mut *tx)
                     .await
                     .map_err(InternalServerError)?;
             }
@@ -307,7 +317,7 @@ impl State {
                 sqlx::query(sql)
                     .bind(thirdparty_uid)
                     .bind(uid)
-                    .execute(&mut tx)
+                    .execute(&mut *tx)
                     .await
                     .map_err(InternalServerError)?;
             }
@@ -327,7 +337,7 @@ impl State {
                 .bind(avatar_updated_at)
                 .bind(create_user.is_admin)
                 .bind(create_user.is_bot)
-                .fetch_one(&mut tx)
+                .fetch_one(&mut *tx)
                 .await
                 .map_err(InternalServerError)?;
             let log_id = new_log_id.0;

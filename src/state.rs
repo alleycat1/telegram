@@ -887,7 +887,7 @@ impl State {
                     sqlx::query("update bot_key set last_used = $1 where id = $2")
                         .bind(bot_key.last_used)
                         .bind(id)
-                        .execute(&mut tx)
+                        .execute(&mut *tx)
                         .await?;
                 }
             }
@@ -1095,7 +1095,7 @@ impl State {
         // delete from user table
         sqlx::query("delete from \"user\" where uid = $1")
             .bind(uid)
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await
             .map_err(InternalServerError)?;
 
@@ -1104,7 +1104,7 @@ impl State {
             let new_log_id : (i64,) = sqlx::query_as("insert into user_log (uid, action) values ($1, $2) RETURNING id")
                 .bind(uid)
                 .bind(UpdateAction::Delete)
-                .fetch_one(&mut tx)
+                .fetch_one(&mut *tx)
                 .await
                 .map_err(InternalServerError)?;
             let log_id = new_log_id.0;

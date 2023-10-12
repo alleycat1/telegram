@@ -753,7 +753,7 @@ impl ApiUser {
         query
             //.bind(now)
             .bind(token.uid)
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await
             .map_err(InternalServerError)?;
 
@@ -767,7 +767,7 @@ impl ApiUser {
                 .bind(&req.name)
                 .bind(req.gender)
                 .bind(&req.language)
-                .fetch_one(&mut tx)
+                .fetch_one(&mut *tx)
                 .await
                 .map_err(InternalServerError)?;
             Some(new_log_id.0)
@@ -848,7 +848,7 @@ impl ApiUser {
         sqlx::query("update \"user\" set avatar_updated_at = now() where uid = $1")
             //.bind(now)
             .bind(token.uid)
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await
             .map_err(InternalServerError)?;
 
@@ -857,7 +857,7 @@ impl ApiUser {
                 .bind(token.uid)
                 .bind(UpdateAction::Update)
                 //.bind(now)
-                .fetch_one(&mut tx)
+                .fetch_one(&mut *tx)
                 .await
                 .map_err(InternalServerError)?;
         let log_id = new_log_id.0;
@@ -1129,7 +1129,7 @@ impl ApiUser {
                 .bind(token.uid)
                 .bind(item.uid)
                 .bind(item.expired_at)
-                .execute(&mut tx)
+                .execute(&mut *tx)
                 .await
                 .map_err(InternalServerError)?;
         }
@@ -1143,7 +1143,7 @@ impl ApiUser {
                 .bind(token.uid)
                 .bind(item.gid)
                 .bind(item.expired_at)
-                .execute(&mut tx)
+                .execute(&mut *tx)
                 .await
                 .map_err(InternalServerError)?;
         }
@@ -1153,7 +1153,7 @@ impl ApiUser {
             sqlx::query(sql)
                 .bind(token.uid)
                 .bind(uid)
-                .execute(&mut tx)
+                .execute(&mut *tx)
                 .await
                 .map_err(InternalServerError)?;
         }
@@ -1163,7 +1163,7 @@ impl ApiUser {
             sqlx::query(sql)
                 .bind(token.uid)
                 .bind(gid)
-                .execute(&mut tx)
+                .execute(&mut *tx)
                 .await
                 .map_err(InternalServerError)?;
         }
@@ -1262,7 +1262,7 @@ impl ApiUser {
                     .bind(token.uid)
                     .bind(item.uid)
                     .bind(item.expires_in)
-                    .execute(&mut tx)
+                    .execute(&mut *tx)
                     .await
                     .map_err(InternalServerError)?;
             } else {
@@ -1270,7 +1270,7 @@ impl ApiUser {
                 sqlx::query(sql)
                     .bind(token.uid)
                     .bind(item.uid)
-                    .execute(&mut tx)
+                    .execute(&mut *tx)
                     .await
                     .map_err(InternalServerError)?;
             }
@@ -1286,7 +1286,7 @@ impl ApiUser {
                     .bind(token.uid)
                     .bind(item.gid)
                     .bind(item.expires_in)
-                    .execute(&mut tx)
+                    .execute(&mut *tx)
                     .await
                     .map_err(InternalServerError)?;
             } else {
@@ -1294,7 +1294,7 @@ impl ApiUser {
                 sqlx::query(sql)
                     .bind(token.uid)
                     .bind(item.gid)
-                    .execute(&mut tx)
+                    .execute(&mut *tx)
                     .await
                     .map_err(InternalServerError)?;
             }
@@ -1415,7 +1415,7 @@ impl ApiUser {
                 .bind(token.uid)
                 .bind(item.uid)
                 .bind(item.mid)
-                .execute(&mut tx)
+                .execute(&mut *tx)
                 .await
                 .map_err(InternalServerError)?;
         }
@@ -1429,7 +1429,7 @@ impl ApiUser {
                 .bind(token.uid)
                 .bind(item.gid)
                 .bind(item.mid)
-                .execute(&mut tx)
+                .execute(&mut *tx)
                 .await
                 .map_err(InternalServerError)?;
         }

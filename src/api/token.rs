@@ -1292,14 +1292,14 @@ impl ApiToken {
         sqlx::query("delete from refresh_token where uid = $1 and device = $2")
             .bind(token.uid)
             .bind(&token.device)
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await
             .map_err(InternalServerError)?;
 
         sqlx::query("delete from device where uid = $1 and device = $2")
             .bind(token.uid)
             .bind(&token.device)
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await
             .map_err(InternalServerError)?;
 
@@ -1396,7 +1396,7 @@ pub async fn do_login(
     .bind(uid)
     .bind(device)
     .bind(&refresh_token)
-    .execute(&mut tx)
+    .execute(&mut *tx)
     .await
     .map_err(InternalServerError)?;
 
@@ -1410,7 +1410,7 @@ pub async fn do_login(
     .bind(uid)
     .bind(device)
     .bind(device_token)
-    .execute(&mut tx)
+    .execute(&mut *tx)
     .await
     .map_err(InternalServerError)?;
 

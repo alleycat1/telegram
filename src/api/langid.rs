@@ -46,19 +46,19 @@ impl Deref for LangId {
 
 impl sqlx::Type<sqlx::Postgres> for LangId {
     fn type_info() -> sqlx::postgres::PgTypeInfo {
-        String::type_info()
+        sqlx::postgres::PgTypeInfo::with_name("text")
     }
 
     fn compatible(ty: &sqlx::postgres::PgTypeInfo) -> bool {
-        String::compatible(ty)
+        let string_type1 = sqlx::postgres::PgTypeInfo::with_name("text");
+        let string_type2 = sqlx::postgres::PgTypeInfo::with_name("varchar");
+        string_type1.oid() == ty.oid() || string_type2.oid() == ty.oid()
     }
 }
 
 impl<'a> sqlx::Decode<'a, sqlx::Postgres> for LangId {
     fn decode(value: sqlx::postgres::PgValueRef<'a>) -> Result<Self, sqlx::error::BoxDynError> {
-        let s = String::decode(value)?;
-        let language_tag: unic_langid::LanguageIdentifier = s.parse().map_err(Box::new)?;
-        Ok(Self(language_tag))
+        Ok(Self(unic_langid::LanguageIdentifier::from_str(sqlx::Decode::<sqlx_postgres::Postgres>::decode(value).unwrap()).unwrap()))
     }
 }
 
@@ -67,7 +67,7 @@ impl<'a> sqlx::Encode<'a, sqlx::Postgres> for LangId {
         &self,
         buf: &mut sqlx::postgres::PgArgumentBuffer,
     ) -> sqlx::encode::IsNull {
-        self.0.to_string().encode(buf)
+        sqlx::Encode::<sqlx_postgres::Postgres>::encode(self.0.to_string(), buf)
     }
 }
 
