@@ -21,16 +21,15 @@ impl sqlx::Type<sqlx::Postgres> for UpdateAction {
 
     fn compatible(ty: &sqlx::postgres::PgTypeInfo) -> bool {
         let string_type = sqlx::postgres::PgTypeInfo::with_name("Int4");
-        string_type.oid() == ty.oid();
-        i32::compatible(ty)
+        string_type.oid() == ty.oid()
+        //i32::compatible(ty)
     }
 }
 
 impl<'a> sqlx::Decode<'a, sqlx::Postgres> for UpdateAction {
     fn decode(value: sqlx::postgres::PgValueRef<'a>) -> Result<Self, sqlx::error::BoxDynError> {
-        //let n = i32::decode(value)?;
-        let n : i32 = sqlx::postgres::decode::Decode::decode(value)?;
-        //let n : i32 = sqlx_postgres::decode::Decode<'r, sqlx_postgres::postgres::Pg>(value)?;
+        let mut decoder = sqlx::postgres::types::PgRecordDecoder::new(value)?;
+        let n = decoder.try_decode::<i32>()?;
         Ok(Self::try_from(n)?)
     }
 }

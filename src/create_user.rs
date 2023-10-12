@@ -9,6 +9,8 @@ use crate::{
     state::{BroadcastEvent, CacheUser, UserStatus},
     State,
 };
+use sqlx::Row;
+use sqlx::Value;
 
 #[derive(Debug)]
 pub enum CreateUserBy<'a> {
@@ -237,7 +239,7 @@ impl State {
         let sql = "insert into \"user\" (name, password, email, gender, language, is_admin, create_by, avatar_updated_at, status, created_at, updated_at, is_guest, webhook_url, is_bot) 
                         values ($1, $2, $3, $4, $5, $6, $7, now(), $8, now(), now(), $9, $10, $11) RETURNING uid";
         //let new_uid : (i64,)  = 
-        /*
+        
         let result = sqlx::query(sql)
             .bind(create_user.name)
             .bind(password)
@@ -253,15 +255,29 @@ impl State {
             .fetch_one(&mut *tx)
             .await
             .map_err(InternalServerError)?;
-        let uid = 0;
+        
+        /*
+        let result = sqlx::query!("insert into \"user\" (name, password, email, gender, language, is_admin, create_by, avatar_updated_at, status, created_at, updated_at, is_guest, webhook_url, is_bot) 
+                                values ($1, $2, $3, $4, $5, $6, $7, now(), $8, now(), now(), $9, $10, $11) RETURNING uid", 
+                                create_user.name, 
+                                password, 
+                                email, 
+                                create_user.gender, 
+                                LangId::to_string(&language), 
+                                create_user.is_admin, 
+                                create_user.create_by.type_name(), 
+                                i8::from(UserStatus::Normal).to_string(), 
+                                is_guest, 
+                                create_user.webhook_url.unwrap_or(""), 
+                                create_user.is_bot)
+                                .fetch_one(&mut *tx)
+                                .await
+                                .map_err(InternalServerError)?;
+        let uid : i64 = result.uid;
         */
-        let rec = sqlx::query!("insert into \"user\" (name, password, email, gender, language, is_admin, create_by, avatar_updated_at, status, created_at, updated_at, is_guest, webhook_url, is_bot) 
-        values ($1, $2, $3, $4, $5, $6, $7, now(), $8, now(), now(), $9, $10, $11) RETURNING uid", create_user.name, password, email, create_user.gender, LangId::to_string(&language), create_user.is_admin, create_user.create_by.type_name(), 
-                                i8::from(UserStatus::Normal).to_string(), is_guest, create_user.webhook_url.unwrap_or(""), create_user.is_bot)
-                                .fetch_one(&mut *tx).await.expect("Unable to insert a domain");
-        let uid : i64 = rec.uid;
-
-        //let uid = result.uid;
+        //sqlx::postgres::PgValue row;
+        //let uid : i64 = result.try_get_raw(0).unwrap().to_owned().decode<'r,i64>();
+        let uid : i64 = 0;
         println!("uid: {}",uid);
 
         if let Some(avatar) = create_user.avatar {
